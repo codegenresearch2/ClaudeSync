@@ -1,1 +1,1 @@
-import os\"import time\nimport logging\nimport datetime\nfrom datetime import timezone\nimport tqdm\n\nlogger = logging.getLogger(__name__)\n\nclass SyncManager:\"""\"""\""""
+import os\"import time\"import logging\"import datetime\"from datetime import timezone\"import tqdm\"from claudesync.utils import compute_md5_hash\""
