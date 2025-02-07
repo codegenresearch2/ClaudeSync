@@ -1,1 +1,1 @@
-import logging
+class ClaudeAIProvider:\n    pass
