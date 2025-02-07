@@ -1,1 +1,1 @@
-import os"
+import os\\nimport click\\n\\n@click.command()\\n@click.pass_context\\ndef sync(ctx):\\n    '''Synchronize files between local and remote projects. This function will handle the synchronization process.'''\\n    try:\\n        # Your synchronization logic here\\n        click.echo('Files synchronized successfully.')\\n    except Exception as e:\\n        click.echo(f'An error occurred: {str(e)}')
