@@ -1,1 +1,1 @@
-import urllib.request\"import gzip\"import io\"import click\"from .base_provider import BaseProvider\"from ..config_manager import ConfigManager\"from ..exceptions import ProviderError\"\ndef is_url_encoded(s):\"
+import urllib.request"
