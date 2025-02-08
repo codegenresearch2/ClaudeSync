@@ -1,1 +1,1 @@
-import os"
+import os\\nimport click\\n\\n@click.command()\\ndef sync():\\\"\\"Synchronize files\\\\n\\n    This function will sync files between the local and remote directories.\\\"\\"\\n    # Your synchronization logic here\\n    pass\\n\\nif __name__ == '\\\'_main\\\'_':\\n    sync()
