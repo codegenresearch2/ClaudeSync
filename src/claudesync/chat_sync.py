@@ -1,3 +1,4 @@
+import re
 import json
 import logging
 import os
@@ -10,15 +11,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_file_extension(artifact_type):
-    """
-    Get the appropriate file extension for a given artifact type.
-
-    Args:
-        artifact_type (str): The MIME type of the artifact.
-
-    Returns:
-        str: The corresponding file extension.
-    """
     type_to_extension = {
         "text/html": "html",
         "application/vnd.ant.code": "txt",
@@ -29,8 +21,26 @@ def get_file_extension(artifact_type):
     return type_to_extension.get(artifact_type, "txt")
 
 
+def extract_artifacts(text):
+    artifacts = []
+    pattern = re.compile(
+        r'<antArtifact\s+identifier="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)</antArtifact>',
+        re.MULTILINE,
+    )
+    matches = pattern.findall(text)
+    for match in matches:
+        identifier, artifact_type, title, content = match
+        artifacts.append(
+            {
+                "identifier": identifier,
+                "type": artifact_type,
+                "content": content.strip(),
+            }
+        )
+    return artifacts
+
+
 def save_artifacts(chat_folder, artifacts):
-    """Save artifacts to the specified chat folder."""
     artifact_folder = os.path.join(chat_folder, "artifacts")
     os.makedirs(artifact_folder, exist_ok=True)
     for artifact in artifacts:
@@ -46,7 +56,6 @@ def save_artifacts(chat_folder, artifacts):
 
 
 def sync_chat(provider, config, chat_id, chat_destination):
-    """Synchronize a single chat and its artifacts."""
     chat_folder = os.path.join(chat_destination, chat_id)
     os.makedirs(chat_folder, exist_ok=True)
 
@@ -75,57 +84,11 @@ def sync_chat(provider, config, chat_id, chat_destination):
     assistant_messages = [msg for msg in full_chat if msg["sender"] == "assistant"]
     if assistant_messages:
         logger.info(f"Found {len(assistant_messages)} assistant messages in chat {chat_id}")
-        artifacts = extract_artifacts(assistant_messages)
+        artifacts = extract_artifacts(full_chat)
         save_artifacts(chat_folder, artifacts)
 
 
-def extract_artifacts(messages):
-    """
-    Extract artifacts from the given messages.
-
-    This function searches for antArtifact tags in the messages and extracts
-    the artifact information, including identifier, type, and content.
-
-    Args:
-        messages (list): The list of messages to search for artifacts.
-
-    Returns:
-        list: A list of dictionaries containing artifact information.
-    """
-    artifacts = []
-    for message in messages:
-        pattern = re.compile(
-            r'<antArtifact\s+identifier="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)</antArtifact>',
-            re.MULTILINE,
-        )
-        matches = pattern.findall(message["text"])
-        for match in matches:
-            identifier, artifact_type, title, content = match
-            artifacts.append(
-                {
-                    "identifier": identifier,
-                    "type": artifact_type,
-                    "content": content.strip(),
-                }
-            )
-    return artifacts
-
-
 def sync_chats(provider, config, sync_all=False):
-    """
-    Synchronize chats and their artifacts from the remote source.
-
-    This function fetches all chats for the active organization, saves their metadata,
-    messages, and extracts any artifacts found in the assistant's messages.
-
-    Args:
-        provider: The API provider instance.
-        config: The configuration manager instance.
-        sync_all (bool): If True, sync all chats regardless of project. If False, only sync chats for the active project.
-
-    Raises:
-        ConfigurationError: If required configuration settings are missing.
-    """
     local_path = config.get("local_path")
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
