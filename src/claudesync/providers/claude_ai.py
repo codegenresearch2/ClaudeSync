@@ -14,7 +14,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "Accept-Encoding": "gzip, deflate, zstd",
         }
 
-        request = urllib.request.Request(url, method=method, headers=headers, data=json.dumps(data).encode("utf-8") if data else None)
+        request = urllib.request.Request(url, method=method, headers=headers)
+
+        if data:
+            json_data = json.dumps(data).encode("utf-8")
+            request.add_header("Content-Length", len(json_data))
+            request.data = json_data
 
         cookies = {
             "sessionKey": self.session_key,
@@ -46,13 +51,11 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 if "Content-Encoding" in response_headers and response_headers["Content-Encoding"] == "gzip":
                     response_data = gzip.decompress(response_data)
 
-                if not response_data:
-                    return None
-
                 try:
                     return json.loads(response_data.decode("utf-8"))
                 except json.JSONDecodeError as e:
                     self.logger.error(f"Failed to parse JSON response: {str(e)}")
+                    self.logger.error(f"Raw response content: {response_data}")
                     raise ProviderError(f"Invalid JSON response from API: {str(e)}")
 
         except urllib.error.HTTPError as e:
