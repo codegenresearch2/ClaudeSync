@@ -73,8 +73,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         try:
             content = e.read().decode("utf-8")
         except UnicodeDecodeError:
-            self.logger.error(f"Failed to decode response content: {e.read()}")
-            raise ProviderError(f"Failed to decode response content: {e.read()}")
+            try:
+                content = e.read().decode("ISO-8859-1")
+                self.logger.error("Failed to decode response content using UTF-8. Trying ISO-8859-1 instead.")
+            except UnicodeDecodeError:
+                self.logger.error(f"Failed to decode response content: {e.read()}")
+                raise ProviderError(f"Failed to decode response content: {e.read()}")
         
         self.logger.debug(f"Response content: {content}")
         
