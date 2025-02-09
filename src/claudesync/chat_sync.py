@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def save_artifacts(chat_folder, artifacts):
     artifact_folder = os.path.join(chat_folder, 'artifacts')
-    os.makedirs(artifact_folder, exist_ok=True)
+os.makedirs(artifact_folder, exist_ok=True)
     for artifact in artifacts:
         artifact_file = os.path.join(
             artifact_folder,
@@ -25,7 +25,7 @@ def sync_chats(provider, config, sync_all=False):
             'Local path not set. Use claudesync project select or claudesync project create to set it.'
         )
     chat_destination = os.path.join(local_path, 'chats')
-    os.makedirs(chat_destination, exist_ok=True)
+os.makedirs(chat_destination, exist_ok=True)
     organization_id = config.get('active_organization_id')
     if not organization_id:
         raise ConfigurationError(
@@ -43,7 +43,7 @@ def sync_chats(provider, config, sync_all=False):
         if sync_all or (chat.get('project') and chat['project'].get('uuid') == active_project_id):
             logger.info(f'Processing chat {chat['uuid']}')
             chat_folder = os.path.join(chat_destination, chat['uuid'])
-            os.makedirs(chat_folder, exist_ok=True)
+os.makedirs(chat_folder, exist_ok=True)
             with open(os.path.join(chat_folder, 'metadata.json'), 'w') as f:
                 json.dump(chat, f, indent=2)
             logger.debug(f'Fetching full conversation for chat {chat['uuid']}')
