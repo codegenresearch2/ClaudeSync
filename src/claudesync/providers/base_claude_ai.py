@@ -19,7 +19,7 @@ def _get_session_key_expiry():
         default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
         expires = click.prompt(
-            "Please enter the expires time for the sessionKey",
+            "Please enter the expires time for the sessionKey (optional)",
             default=formatted_expires,
             type=str,
         ).strip()
@@ -67,7 +67,7 @@ class BaseClaudeAIProvider(BaseProvider):
         )
 
         while True:
-            session_key = click.prompt("Please enter your sessionKey", type=str)
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
             if not session_key.startswith("sk-ant"):
                 click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
                 continue
