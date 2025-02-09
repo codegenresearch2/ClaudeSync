@@ -247,8 +247,10 @@ class SyncManager:
         logger.debug(
             f"Creating new local file {remote_file['file_name']} from remote..."
         )
-        with open(local_file_path, "w", encoding="utf-8") as file:
-            file.write(remote_file["content"])
+        with tqdm(total=1, desc=f"Creating {remote_file['file_name']}", leave=False) as pbar:
+            with open(local_file_path, "w", encoding="utf-8") as file:
+                file.write(remote_file["content"])
+            pbar.update(1)
         synced_files.add(remote_file["file_name"])
 
     def delete_remote_files(self, file_to_delete):
@@ -258,10 +260,14 @@ class SyncManager:
         This method deletes a remote file that is not present in the local directory.
 
         Args:
-            file_to_delete (dict): Dictionary representing the remote file to be deleted.
+            file_to_delete (str): Name of the remote file to be deleted.
         """
-        logger.debug(f"Deleting {file_to_delete['file_name']} from remote...")
-        self.provider.delete_file(
-            self.active_organization_id, self.active_project_id, file_to_delete["uuid"]
+        logger.debug(f"Deleting {file_to_delete} from remote...")
+        remote_file = next(
+            (rf for rf in remote_files if rf["file_name"] == file_to_delete), None
         )
-        time.sleep(self.upload_delay)
+        if remote_file:
+            self.provider.delete_file(
+                self.active_organization_id, self.active_project_id, remote_file["uuid"]
+            )
+            time.sleep(self.upload_delay)
