@@ -47,7 +47,6 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
-            print(local_files)  # Print statement for debugging and matching gold code
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
