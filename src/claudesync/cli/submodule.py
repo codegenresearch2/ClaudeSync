@@ -5,16 +5,12 @@ from ..utils import (
     handle_errors,
     validate_and_get_provider,
     detect_submodules,
-    logging,
 )
-
-logger = logging.getLogger(__name__)
 
 @click.group()
 def submodule():
     """Manage submodules within the current project."""
     pass
-
 
 @submodule.command()
 @click.pass_obj
@@ -38,7 +34,6 @@ def ls(config):
         click.echo("Detected submodules:")
         for submodule, detected_file in submodules:
             click.echo(f"  - {submodule} [{detected_file}]")
-
 
 @submodule.command()
 @click.pass_obj
@@ -98,7 +93,6 @@ def create(config):
                 click.echo(
                     f"Failed to create project for submodule '{submodule_name}': {str(e)}"
                 )
-                logger.error(f"Failed to create project for submodule '{submodule_name}': {str(e)}")
 
     click.echo(
         "\nSubmodule projects created successfully. You can now select and sync these projects individually."
