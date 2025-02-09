@@ -27,7 +27,7 @@ def _get_session_key_expiry():
             expires_on = datetime.datetime.strptime(expires, date_format)
             return expires_on
         except ValueError:
-            click.echo("The entered date does not match the required format. Please try again.")
+            print("The entered date does not match the required format. Please try again.")
 
 
 class BaseClaudeAIProvider(BaseProvider):
@@ -58,7 +58,7 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
         while True:
-            session_key = click.prompt("Please enter your sessionKey", type=str)
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
             if not session_key.startswith("sk-ant"):
                 click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
                 continue
@@ -74,18 +74,13 @@ class BaseClaudeAIProvider(BaseProvider):
                 if organizations:
                     break  # Exit the loop if get_organizations is successful
             except ProviderError as e:
-                click.echo(e)
-                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
+                print(e)
+                print("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
         return self.session_key, self.session_key_expiry
 
     def get_organizations(self):
-        try:
-            response = self._make_request("GET", "/organizations")
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return []
-
+        response = self._make_request("GET", "/organizations")
         if not response:
             raise ProviderError("Unable to retrieve organization information")
         return [
@@ -96,12 +91,7 @@ class BaseClaudeAIProvider(BaseProvider):
         ]
 
     def get_projects(self, organization_id, include_archived=False):
-        try:
-            response = self._make_request("GET", f"/organizations/{organization_id}/projects")
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return []
-
+        response = self._make_request("GET", f"/organizations/{organization_id}/projects")
         projects = [
             {
                 "id": project["uuid"],
@@ -114,14 +104,7 @@ class BaseClaudeAIProvider(BaseProvider):
         return projects
 
     def list_files(self, organization_id, project_id):
-        try:
-            response = self._make_request(
-                "GET", f"/organizations/{organization_id}/projects/{project_id}/docs"
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return []
-
+        response = self._make_request("GET", f"/organizations/{organization_id}/projects/{project_id}/docs")
         return [
             {
                 "uuid": file["uuid"],
@@ -134,95 +117,37 @@ class BaseClaudeAIProvider(BaseProvider):
 
     def upload_file(self, organization_id, project_id, file_name, content):
         data = {"file_name": file_name, "content": content}
-        try:
-            response = self._make_request(
-                "POST", f"/organizations/{organization_id}/projects/{project_id}/docs", data
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return None
-
+        response = self._make_request("POST", f"/organizations/{organization_id}/projects/{project_id}/docs", data)
         return response
 
     def delete_file(self, organization_id, project_id, file_uuid):
-        try:
-            response = self._make_request(
-                "DELETE",
-                f"/organizations/{organization_id}/projects/{project_id}/docs/{file_uuid}",
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return False
-
+        response = self._make_request("DELETE", f"/organizations/{organization_id}/projects/{project_id}/docs/{file_uuid}")
         return response
 
     def archive_project(self, organization_id, project_id):
         data = {"is_archived": True}
-        try:
-            response = self._make_request(
-                "PUT", f"/organizations/{organization_id}/projects/{project_id}", data
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return False
-
+        response = self._make_request("PUT", f"/organizations/{organization_id}/projects/{project_id}", data)
         return response
 
     def create_project(self, organization_id, name, description=""):
         data = {"name": name, "description": description, "is_private": True}
-        try:
-            response = self._make_request(
-                "POST", f"/organizations/{organization_id}/projects", data
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return None
-
+        response = self._make_request("POST", f"/organizations/{organization_id}/projects", data)
         return response
 
     def get_chat_conversations(self, organization_id):
-        try:
-            response = self._make_request(
-                "GET", f"/organizations/{organization_id}/chat_conversations"
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return []
-
+        response = self._make_request("GET", f"/organizations/{organization_id}/chat_conversations")
         return response
 
     def get_published_artifacts(self, organization_id):
-        try:
-            response = self._make_request(
-                "GET", f"/organizations/{organization_id}/published_artifacts"
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return []
-
+        response = self._make_request("GET", f"/organizations/{organization_id}/published_artifacts")
         return response
 
     def get_chat_conversation(self, organization_id, conversation_id):
-        try:
-            response = self._make_request(
-                "GET",
-                f"/organizations/{organization_id}/chat_conversations/{conversation_id}?rendering_mode=raw",
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return None
-
+        response = self._make_request("GET", f"/organizations/{organization_id}/chat_conversations/{conversation_id}?rendering_mode=raw")
         return response
 
     def get_artifact_content(self, organization_id, artifact_uuid):
-        try:
-            artifacts = self._make_request(
-                "GET", f"/organizations/{organization_id}/published_artifacts"
-            )
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return None
-
+        artifacts = self._make_request("GET", f"/organizations/{organization_id}/published_artifacts")
         for artifact in artifacts:
             if artifact["published_artifact_uuid"] == artifact_uuid:
                 return artifact.get("artifact_content", "")
@@ -231,12 +156,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def delete_chat(self, organization_id, conversation_uuids):
         endpoint = f"/organizations/{organization_id}/chat_conversations/delete_many"
         data = {"conversation_uuids": conversation_uuids}
-        try:
-            response = self._make_request("POST", endpoint, data)
-        except requests.RequestException as e:
-            click.echo(f"Error making request: {e}")
-            return False
-
+        response = self._make_request("POST", endpoint, data)
         return response
 
     def _make_request(self, method, endpoint, data=None):
@@ -250,9 +170,9 @@ class BaseClaudeAIProvider(BaseProvider):
 
         try:
             response = requests.request(method, url, headers=headers, json=data)
+            response.raise_for_status()
         except requests.RequestException as e:
-            click.echo(f"Request failed: {e}")
-            return None
+            raise ProviderError(f"Request failed: {e}")
 
         if response.status_code == 204:
             return None
