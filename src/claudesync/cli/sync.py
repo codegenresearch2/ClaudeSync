@@ -34,6 +34,7 @@ def install_completion(shell):
 
 @cli.command()
 @click.pass_obj
+@handle_errors
 def status(config):
     """Display current configuration status."""
     for key in [
@@ -46,14 +47,42 @@ def status(config):
         value = config.get(key)
         click.echo(f'{key.replace('_', ' ').capitalize()}: {value or 'Not set'}')
 
-cli.add_command(api)
-cli.add_command(organization)
-cli.add_command(project)
-cli.add_command(ls)
-cli.add_command(sync)
-cli.add_command(schedule)
-cli.add_command(config)
-cli.add_command(chat)
+@cli.command()
+@click.pass_obj
+@handle_errors
+def ls(config):
+    """List files in the active remote project."""
+    provider = validate_and_get_provider(config)
+    active_organization_id = config.get('active_organization_id')
+    active_project_id = config.get('active_project_id')
+    files = provider.list_files(active_organization_id, active_project_id)
+    if not files:
+        click.echo('No files found in the active project.')
+    else:
+        click.echo(
+            f'Files in project \'{config.get('active_project_name')}\' (ID: {active_project_id}):')
+        for file in files:
+            click.echo(
+                f'  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})')
+
+@cli.command()
+@click.pass_obj
+@handle_errors
+def sync(config):
+    """Synchronize both projects and chats."""
+    provider = validate_and_get_provider(config)
+
+    # Sync projects
+    sync_manager = SyncManager(provider, config)
+    remote_files = provider.list_files(
+        sync_manager.active_organization_id, sync_manager.active_project_id)
+    local_files = get_local_files(config.get('local_path'))
+    sync_manager.sync(local_files, remote_files)
+    click.echo('Project sync completed successfully.')
+
+    # Sync chats
+    sync_chats(provider, config)
+    click.echo('Chat sync completed successfully.')
 
 if __name__ == '__main__':
     cli()
