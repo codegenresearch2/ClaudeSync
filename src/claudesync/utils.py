@@ -25,9 +25,10 @@ def handle_errors(func):
     return wrapper
 
 
-def compute_md5_hash(content):
-    """Computes the MD5 hash of the given content."
-    return hashlib.md5(content.encode('utf-8')).hexdigest()
+def normalize_and_calculate_md5(content):
+    """Normalizes the line endings of the input content to Unix-style (\n) and calculates the MD5 hash of the normalized content."
+    normalized_content = content.replace('\r\n', '\n').replace('\r', '\n').strip()
+    return hashlib.md5(normalized_content.encode('utf-8')).hexdigest()
 
 
 def load_gitignore(base_path):
@@ -35,6 +36,15 @@ def load_gitignore(base_path):
     gitignore_path = os.path.join(base_path, '.gitignore')
     if os.path.exists(gitignore_path):
         with open(gitignore_path, 'r') as f:
+            return pathspec.PathSpec.from_lines('gitwildmatch', f)
+    return None
+
+
+def load_claudeignore(base_path):
+    """Loads and parses the .claudeignore file from the specified base path."
+    claudeignore_path = os.path.join(base_path, '.claudeignore')
+    if os.path.exists(claudeignore_path):
+        with open(claudeignore_path, 'r') as f:
             return pathspec.PathSpec.from_lines('gitwildmatch', f)
     return None
 
@@ -54,7 +64,7 @@ def process_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
-            return compute_md5_hash(content)
+            return normalize_and_calculate_md5(content)
     except UnicodeDecodeError:
         logger.debug(f'Unable to read {file_path} as UTF-8 text. Skipping.')
     except Exception as e:
@@ -83,16 +93,23 @@ def get_local_files(local_path):
     return files
 
 
+@handle_errors
+def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
+    """Determines whether a file should be processed based on various criteria."
+    max_file_size = config_manager.get('max_file_size', 32 * 1024)
+    if os.path.getsize(file_path) > max_file_size:
+        return False
+    if filename.endswith('~'):
+        return False
+    rel_path = os.path.relpath(file_path, base_path)
+    if gitignore and gitignore.match_file(rel_path):
+        return False
+    if claudeignore and claudeignore.match_file(rel_path):
+        return False
+    return is_text_file(file_path)
 
-def load_claudeignore(base_path):
-    """Loads and parses the .claudeignore file from the specified base path."
-    claudeignore_path = os.path.join(base_path, '.claudeignore')
-    if os.path.exists(claudeignore_path):
-        with open(claudeignore_path, 'r') as f:
-            return pathspec.PathSpec.from_lines('gitwildmatch', f)
-    return None
 
-
+@handle_errors
 def validate_and_store_local_path(config):
     """Prompts the user for the absolute path to their local project directory and stores it in the configuration."
     while True:
