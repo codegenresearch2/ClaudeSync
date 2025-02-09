@@ -53,14 +53,14 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                     raise ProviderError(f"Invalid JSON response from API: {str(e)}")
 
         except urllib.error.HTTPError as e:
-            self.logger.error(f"HTTP Error {e.code}: {e.read().decode('utf-8')}")
-            raise ProviderError(f"API request failed: {e.reason}")
+            if e.code == 403:
+                error_msg = "403 Forbidden error: Your session key might be invalid. Please try logging out and logging in again. If the issue persists, you can try using the claude.ai-curl provider as a workaround:\nclaudesync api logout\nclaudesync api login claude.ai-curl"
+                self.logger.error(error_msg)
+                raise ProviderError(error_msg)
+            else:
+                self.logger.error(f"HTTP Error {e.code}: {e.read().decode('utf-8')}")
+                raise ProviderError(f"API request failed: {e.reason}")
 
         except urllib.error.URLError as e:
             self.logger.error(f"Request failed: {e.reason}")
             raise ProviderError(f"API request failed: {e.reason}")
-
-    def _handle_http_error(self, status_code, response_content):
-        error_msg = f"HTTP Error {status_code}: {response_content}"
-        self.logger.error(error_msg)
-        raise ProviderError(error_msg)
