@@ -1,8 +1,6 @@
+import os
 import click
 from functools import wraps
-import os
-import requests
-from tqdm import tqdm
 
 # Error handling decorator
 def handle_errors(func):
@@ -44,11 +42,22 @@ def create(config):
     provider = Provider()
     organization_id = config.get("active_organization_id")
 
-    title = click.prompt("Enter a title for your new project")
-    description = click.prompt("Enter the project description (optional)")
+    title = click.prompt("Enter a title for your new project", default=os.path.basename(os.getcwd()))
+    description = click.prompt("Enter the project description (optional)", default="")
 
-    new_project = provider.create_project(organization_id, title, description)
-    click.echo(f"Project '{new_project['name']}' (uuid: {new_project['id']}) has been created successfully.")
+    try:
+        new_project = provider.create_project(organization_id, title, description)
+        click.echo(f"Project '{new_project['name']}' (uuid: {new_project['id']}) has been created successfully.")
+
+        config.set("active_project_id", new_project["id"])
+        config.set("active_project_name", new_project["name"])
+        click.echo(f"Active project set to: {new_project['name']} (uuid: {new_project['id']})")
+
+        # Mock implementation for local path validation
+        validate_and_store_local_path(config)
+
+    except ProviderError as e:
+        click.echo(f"Failed to create project: {str(e)}")
 
 # Command to archive an existing project
 @click.command()
@@ -175,6 +184,22 @@ def download(url, destination):
         for data in response.iter_content(chunk_size=1024):
             f.write(data)
             pbar.update(len(data))
+
+# Mock ProviderError for error handling
+class ProviderError(Exception):
+    pass
+
+# Mock implementation for local path validation
+def validate_and_store_local_path(config):
+    local_path = config.get("local_path")
+    if not local_path:
+        click.echo("No local path set. Please select or create a project to set the local path.")
+        sys.exit(1)
+    if not os.path.exists(local_path):
+        click.echo(f"The configured local path does not exist: {local_path}")
+        click.echo("Please update the local path by selecting or creating a project.")
+        sys.exit(1)
+    config.set("local_path", local_path)
 
 # Group commands under a single group
 @click.group()
