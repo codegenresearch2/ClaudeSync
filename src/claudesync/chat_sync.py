@@ -19,6 +19,7 @@ os.makedirs(artifact_folder, exist_ok=True)
             with open(artifact_file, 'w') as f:
                 f.write(artifact['content'])
 
+
 def sync_chats(provider, config, sync_all=False):
     local_path = config.get('local_path')
     if not local_path:
