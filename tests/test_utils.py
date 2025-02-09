@@ -1,16 +1,12 @@
 import unittest
 import os
 import tempfile
-import logging
 from claudesync.utils import (
     compute_md5_hash,
     load_gitignore,
     get_local_files,
     load_claudeignore,
 )
-
-# Set up logging for debugging
-logging.basicConfig(level=logging.DEBUG)
 
 class TestUtils(unittest.TestCase):
 
@@ -49,13 +45,18 @@ class TestUtils(unittest.TestCase):
             # Create version control system directories
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
-                    f.write("*.log\n")
+                with open(os.path.join(tmpdir, vcs, "afile"), "w") as f:
+                    f.write("Version control file")
 
             # Create build directory
             os.mkdir(os.path.join(tmpdir, "build"))
             with open(os.path.join(tmpdir, "build", "output.txt"), "w") as f:
                 f.write("Build output")
+
+            # Create target directory
+            os.mkdir(os.path.join(tmpdir, "target"))
+            with open(os.path.join(tmpdir, "target", "target_file.txt"), "w") as f:
+                f.write("Target file content")
 
             # Create .claudeignore file
             with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
@@ -67,12 +68,12 @@ class TestUtils(unittest.TestCase):
                 f.write("Chat content")
 
             local_files = get_local_files(tmpdir)
-            logging.debug(local_files)
+            print(local_files)
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
             self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
-            self.assertNotIn(os.path.join("target", "output.txt"), local_files)
+            self.assertNotIn(os.path.join("target", "target_file.txt"), local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
             # Ensure ignored files not included
             self.assertEqual(len(local_files), 4)
@@ -109,7 +110,6 @@ class TestUtils(unittest.TestCase):
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-
 
 if __name__ == "__main__":
     unittest.main()
