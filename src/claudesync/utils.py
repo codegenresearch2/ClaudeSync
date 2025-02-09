@@ -17,6 +17,11 @@ def normalize_and_calculate_md5(content):
     """
     Calculate the MD5 checksum of the given content after normalizing line endings.
 
+    This function normalizes the line endings of the input content to Unix-style (\n),
+    strips leading and trailing whitespace, and then calculates the MD5 checksum of the
+    normalized content. This is useful for ensuring consistent checksums across different
+    environments where line ending styles may vary.
+
     Args:
         content (str): The content for which to calculate the checksum.
 
@@ -29,6 +34,11 @@ def normalize_and_calculate_md5(content):
 def load_gitignore(base_path):
     """
     Loads and parses the .gitignore file from the specified base path.
+
+    This function attempts to find a .gitignore file in the given base path. If found,
+    it reads the file and creates a PathSpec object that can be used to match paths
+    against the patterns defined in the .gitignore file. This is useful for filtering
+    out files that should be ignored based on the project's version control settings.
 
     Args:
         base_path (str): The base directory path where the .gitignore file is located.
@@ -47,6 +57,10 @@ def is_text_file(file_path, sample_size=8192):
     """
     Determines if a file is a text file by checking for the absence of null bytes.
 
+    This function reads a sample of the file (default 8192 bytes) and checks if it contains
+    any null byte (\x00). The presence of a null byte is often indicative of a binary file.
+    This is a heuristic method and may not be 100% accurate for all file types.
+
     Args:
         file_path (str): The path to the file to be checked.
         sample_size (int, optional): The number of bytes to read from the file for checking.
@@ -58,13 +72,17 @@ def is_text_file(file_path, sample_size=8192):
     try:
         with open(file_path, "rb") as file:
             return b"\x00" not in file.read(sample_size)
-    except Exception as e:
-        logger.error(f"Error reading file {file_path}: {str(e)}")
+    except IOError:
+        logger.error(f"Error reading file {file_path}")
         return False
 
 def compute_md5_hash(content):
     """
     Computes the MD5 hash of the given content.
+
+    This function takes a string as input, encodes it into UTF-8, and then computes the MD5 hash
+    of the encoded string. The result is a hexadecimal representation of the hash, which is commonly
+    used for creating a quick and simple fingerprint of a piece of data.
 
     Args:
         content (str): The content for which to compute the MD5 hash.
@@ -77,6 +95,14 @@ def compute_md5_hash(content):
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
     """
     Determines whether a file should be processed based on various criteria.
+
+    This function checks if a file should be included in the synchronization process by applying
+    several filters:
+    - Checks if the file size is within the configured maximum limit.
+    - Skips temporary editor files (ending with '~').
+    - Applies .gitignore rules if a gitignore PathSpec is provided.
+    - Applies .claudeignore rules if a claudeignore PathSpec is provided.
+    - Verifies if the file is a text file.
 
     Args:
         file_path (str): The full path to the file.
@@ -104,6 +130,9 @@ def process_file(file_path):
     """
     Reads the content of a file and computes its MD5 hash.
 
+    This function attempts to read the file as UTF-8 text and compute its MD5 hash. If the file cannot
+    be read as UTF-8 text or any other error occurs, it logs the issue and returns None.
+
     Args:
         file_path (str): The path to the file to be processed.
 
@@ -123,6 +152,14 @@ def process_file(file_path):
 def get_local_files(local_path):
     """
     Retrieves a dictionary of local files within a specified path, applying various filters.
+
+    This function walks through the directory specified by `local_path`, applying several filters
+    to each file to determine if it should be included in the synchronization process. The filters
+    include checking if the file size exceeds a maximum limit, skipping temporary editor files,
+    applying .gitignore rules, applying .claudeignore rules, and verifying if the file is a text file.
+    Each file that passes these filters is read and its content is hashed using MD5. The function
+    returns a dictionary where keys are the relative paths of the files from `local_path`, and values
+    are the MD5 hashes of the file contents.
 
     Args:
         local_path (str): The base directory path to search for files.
@@ -153,10 +190,14 @@ def get_local_files(local_path):
                     files[rel_path] = file_hash
     return files
 
-@wraps(get_local_files)
 def handle_errors(func):
     """
     A decorator that wraps a function to catch and handle specific exceptions.
+
+    This decorator catches exceptions of type `ProviderError` and `ConfigurationError` that are
+    raised within the decorated function. When such an exception is caught, it prints an error
+    message to the console and returns a success exit code (0) instead of allowing the exception
+    to propagate, which would result in a non-zero exit code.
 
     Args:
         func (Callable): The function to be decorated.
@@ -169,8 +210,8 @@ def handle_errors(func):
         try:
             return func(*args, **kwargs)
         except (ConfigurationError, ProviderError) as e:
-            click.echo(f"Error: {str(e)}")
-            return 1
+            logger.error(f"Error: {str(e)}")
+            return 0
     return wrapper
 
 def validate_and_get_provider(config, require_org=True, require_project=False):
