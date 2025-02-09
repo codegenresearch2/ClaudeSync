@@ -16,11 +16,30 @@ config_manager = ConfigManager()
 
 
 def normalize_and_calculate_md5(content):
+    """
+    Calculate the MD5 checksum of the given content after normalizing line endings.
+
+    Args:
+        content (str): The content for which to calculate the checksum.
+
+    Returns:
+        str: The hexadecimal MD5 checksum of the normalized content.
+    """
     normalized_content = content.replace("\r\n", "\n").replace("\r", "\n").strip()
     return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
 
 
 def load_gitignore(base_path):
+    """
+    Loads and parses the .gitignore file from the specified base path.
+
+    Args:
+        base_path (str): The base directory path where the .gitignore file is located.
+
+    Returns:
+        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .gitignore file
+                                    if the file exists; otherwise, None.
+    """
     gitignore_path = os.path.join(base_path, ".gitignore")
     if os.path.exists(gitignore_path):
         with open(gitignore_path, "r") as f:
@@ -29,24 +48,51 @@ def load_gitignore(base_path):
 
 
 def is_text_file(file_path, sample_size=8192):
+    """
+    Determines if a file is a text file by checking for the absence of null bytes.
+
+    Args:
+        file_path (str): The path to the file to be checked.
+        sample_size (int, optional): The number of bytes to read from the file for checking.
+                                     Defaults to 8192.
+
+    Returns:
+        bool: True if the file is likely a text file, False if it is likely binary or an error occurred.
+    """
     try:
-        with urlopen(Request(file_path, method="HEAD")) as response:
-            if "content-encoding" in response.headers and response.headers["content-encoding"] == "gzip":
-                file_data = urlopen(file_path).read()
-                content = decompress(file_data)
-            else:
-                content = response.read(sample_size)
-            return b"\x00" not in content
-    except HTTPError as e:
-        logger.debug(f"Unable to read {file_path} as text: {str(e)}")
+        with open(file_path, "rb") as file:
+            return b"\x00" not in file.read(sample_size)
+    except IOError:
         return False
 
 
 def compute_md5_hash(content):
+    """
+    Computes the MD5 hash of the given content.
+
+    Args:
+        content (str): The content for which to compute the MD5 hash.
+
+    Returns:
+        str: The hexadecimal MD5 hash of the input content.
+    """
     return hashlib.md5(content.encode("utf-8")).hexdigest()
 
 
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
+    """
+    Determines whether a file should be processed based on various criteria.
+
+    Args:
+        file_path (str): The full path to the file.
+        filename (str): The name of the file.
+        gitignore (pathspec.PathSpec or None): A PathSpec object containing .gitignore patterns, if available.
+        base_path (str): The base directory path of the project.
+        claudeignore (pathspec.PathSpec or None): A PathSpec object containing .claudeignore patterns, if available.
+
+    Returns:
+        bool: True if the file should be processed, False otherwise.
+    """
     max_file_size = config_manager.get("max_file_size", 32 * 1024)
     if os.path.getsize(file_path) > max_file_size:
         return False
@@ -61,24 +107,36 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
 
 
 def process_file(file_path):
+    """
+    Reads the content of a file and computes its MD5 hash.
+
+    Args:
+        file_path (str): The path to the file to be processed.
+
+    Returns:
+        str or None: The MD5 hash of the file's content if successful, None otherwise.
+    """
     try:
-        with urlopen(file_path) as response:
-            if "content-encoding" in response.headers and response.headers["content-encoding"] == "gzip":
-                file_data = response.read()
-                content = decompress(file_data)
-            else:
-                content = response.read()
-            return compute_md5_hash(content.decode("utf-8"))
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.read()
+            return compute_md5_hash(content)
     except UnicodeDecodeError:
         logger.debug(f"Unable to read {file_path} as UTF-8 text. Skipping.")
-    except HTTPError as e:
-        logger.error(f"HTTP error reading file {file_path}: {str(e)}")
-    except Exception as e:
+    except IOError as e:
         logger.error(f"Error reading file {file_path}: {str(e)}")
     return None
 
 
 def get_local_files(local_path):
+    """
+    Retrieves a dictionary of local files within a specified path, applying various filters.
+
+    Args:
+        local_path (str): The base directory path to search for files.
+
+    Returns:
+        dict: A dictionary where keys are relative file paths, and values are MD5 hashes of the file contents.
+    """
     gitignore = load_gitignore(local_path)
     claudeignore = load_claudeignore(local_path)
     files = {}
