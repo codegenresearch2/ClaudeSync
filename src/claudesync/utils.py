@@ -1,7 +1,5 @@
 import os
 import hashlib
-from functools import wraps
-import click
 import pathspec
 import logging
 from urllib.error import HTTPError
@@ -62,7 +60,8 @@ def is_text_file(file_path, sample_size=8192):
     try:
         with open(file_path, "rb") as file:
             return b"\x00" not in file.read(sample_size)
-    except IOError:
+    except Exception as e:
+        logger.error(f"Error reading file {file_path}: {str(e)}")
         return False
 
 
@@ -122,7 +121,7 @@ def process_file(file_path):
             return compute_md5_hash(content)
     except UnicodeDecodeError:
         logger.debug(f"Unable to read {file_path} as UTF-8 text. Skipping.")
-    except IOError as e:
+    except Exception as e:
         logger.error(f"Error reading file {file_path}: {str(e)}")
     return None
 
