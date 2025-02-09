@@ -9,14 +9,15 @@ logger = logging.getLogger(__name__)
 
 def save_artifacts(chat_folder, artifacts):
     artifact_folder = os.path.join(chat_folder, 'artifacts')
-os.makedirs(artifact_folder, exist_ok=True)
+    os.makedirs(artifact_folder, exist_ok=True)
     for artifact in artifacts:
         artifact_file = os.path.join(
             artifact_folder,
             f'{artifact['identifier']}.{get_file_extension(artifact['type'])}'
         )
-        with open(artifact_file, 'w') as f:
-            f.write(artifact['content'])
+        if not os.path.exists(artifact_file):
+            with open(artifact_file, 'w') as f:
+                f.write(artifact['content'])
 
 def sync_chats(provider, config, sync_all=False):
     local_path = config.get('local_path')
@@ -50,8 +51,9 @@ os.makedirs(chat_folder, exist_ok=True)
             full_chat = provider.get_chat_conversation(organization_id, chat['uuid'])
             for message in full_chat['chat_messages']:
                 message_file = os.path.join(chat_folder, f'{message['uuid']}.json')
-                with open(message_file, 'w') as f:
-                    json.dump(message, f, indent=2)
+                if not os.path.exists(message_file):
+                    with open(message_file, 'w') as f:
+                        json.dump(message, f, indent=2)
                 if message['sender'] == 'assistant':
                     artifacts = extract_artifacts(message['text'])
                     if artifacts:
