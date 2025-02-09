@@ -21,9 +21,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
 
         result = self.provider.login()
 
-        self.assertEqual(
-            result, ("sk-ant-test123", datetime.datetime(2099, 9, 3, 5, 49, 8)))
-        )
+        self.assertEqual(result, ("sk-ant-test123", datetime.datetime(2099, 9, 3, 5, 49, 8)))
         self.assertEqual(self.provider.session_key, "sk-ant-test123")
         mock_echo.assert_called()
 
@@ -53,11 +51,5 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
 
         result = self.provider.login()
 
-        self.assertEqual(
-            result, ("sk-ant-test123", datetime.datetime(2099, 9, 3, 5, 49, 8)))
-        )
+        self.assertEqual(result, ("sk-ant-test123", datetime.datetime(2099, 9, 3, 5, 49, 8)))
         self.assertEqual(mock_prompt.call_count, 3)
-
-
-if __name__ == "__main__":
-    unittest.main()
