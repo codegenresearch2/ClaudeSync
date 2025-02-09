@@ -2,6 +2,7 @@ import os
 import hashlib
 import pathspec
 import logging
+from functools import wraps
 from urllib.error import HTTPError
 from urllib.request import urlopen, Request
 from gzip import decompress
@@ -11,7 +12,6 @@ from claudesync.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
-
 
 def normalize_and_calculate_md5(content):
     """
@@ -25,7 +25,6 @@ def normalize_and_calculate_md5(content):
     """
     normalized_content = content.replace("\r\n", "\n").replace("\r", "\n").strip()
     return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
-
 
 def load_gitignore(base_path):
     """
@@ -43,7 +42,6 @@ def load_gitignore(base_path):
         with open(gitignore_path, "r") as f:
             return pathspec.PathSpec.from_lines("gitwildmatch", f)
     return None
-
 
 def is_text_file(file_path, sample_size=8192):
     """
@@ -64,7 +62,6 @@ def is_text_file(file_path, sample_size=8192):
         logger.error(f"Error reading file {file_path}: {str(e)}")
         return False
 
-
 def compute_md5_hash(content):
     """
     Computes the MD5 hash of the given content.
@@ -76,7 +73,6 @@ def compute_md5_hash(content):
         str: The hexadecimal MD5 hash of the input content.
     """
     return hashlib.md5(content.encode("utf-8")).hexdigest()
-
 
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
     """
@@ -104,7 +100,6 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
         return False
     return is_text_file(file_path)
 
-
 def process_file(file_path):
     """
     Reads the content of a file and computes its MD5 hash.
@@ -124,7 +119,6 @@ def process_file(file_path):
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {str(e)}")
     return None
-
 
 def get_local_files(local_path):
     """
@@ -159,8 +153,17 @@ def get_local_files(local_path):
                     files[rel_path] = file_hash
     return files
 
-
+@wraps(get_local_files)
 def handle_errors(func):
+    """
+    A decorator that wraps a function to catch and handle specific exceptions.
+
+    Args:
+        func (Callable): The function to be decorated.
+
+    Returns:
+        Callable: The wrapper function that includes exception handling.
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -169,8 +172,28 @@ def handle_errors(func):
             click.echo(f"Error: {str(e)}")
     return wrapper
 
-
 def validate_and_get_provider(config, require_org=True, require_project=False):
+    """
+    Validates the configuration for the presence of an active provider and session key,
+    and optionally checks for an active organization ID and project ID. If validation passes,
+    it retrieves the provider instance based on the active provider name.
+
+    Args:
+        config (ConfigManager): The configuration manager instance containing settings.
+        require_org (bool, optional): Flag to indicate whether an active organization ID
+                                      is required. Defaults to True.
+        require_project (bool, optional): Flag to indicate whether an active project ID
+                                          is required. Defaults to False.
+
+    Returns:
+        object: An instance of the provider specified in the configuration.
+
+    Raises:
+        ConfigurationError: If the active provider or session key is missing, or if
+                            require_org is True and no active organization ID is set,
+                            or if require_project is True and no active project ID is set.
+        ProviderError: If the session key has expired.
+    """
     active_provider = config.get("active_provider")
     session_key = config.get_session_key()
     if not session_key:
@@ -192,8 +215,22 @@ def validate_and_get_provider(config, require_org=True, require_project=False):
     session_key_expiry = config.get("session_key_expiry")
     return get_provider(active_provider, session_key, session_key_expiry)
 
-
 def validate_and_store_local_path(config):
+    """
+    Prompts the user for the absolute path to their local project directory and stores it in the configuration.
+
+    This function repeatedly prompts the user to enter the absolute path to their local project directory until
+    a valid absolute path is provided. The path is validated to ensure it exists, is a directory, and is an absolute path.
+    Once a valid path is provided, it is stored in the configuration using the `set` method of the `ConfigManager` object.
+
+    Args:
+        config (ConfigManager): The configuration manager instance to store the local path setting.
+
+    Note:
+        This function uses `click.prompt` to interact with the user, providing a default path (the current working directory)
+        and validating the user's input to ensure it meets the criteria for an absolute path to a directory.
+    """
+
     def get_default_path():
         return os.getcwd()
 
@@ -207,6 +244,7 @@ def validate_and_store_local_path(config):
             default=default_path,
             show_default=True,
         )
+
         if os.path.isabs(local_path):
             config.set("local_path", local_path)
             click.echo(f"Local path set to: {local_path}")
@@ -214,8 +252,17 @@ def validate_and_store_local_path(config):
         else:
             click.echo("Please enter an absolute path.")
 
-
 def load_claudeignore(base_path):
+    """
+    Loads and parses the .claudeignore file from the specified base path.
+
+    Args:
+        base_path (str): The base directory path where the .claudeignore file is located.
+
+    Returns:
+        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .claudeignore file
+                                    if the file exists; otherwise, None.
+    """
     claudeignore_path = os.path.join(base_path, ".claudeignore")
     if os.path.exists(claudeignore_path):
         with open(claudeignore_path, "r") as f:
