@@ -101,7 +101,7 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
     This function checks if a file should be included in the synchronization process by applying
     several filters:
     - Checks if the file size is within the configured maximum limit.
-    - Skips temporary editor files (ending with '~').
+    - Skips temporary editor files (ending with ~).
     - Applies .gitignore rules if a gitignore PathSpec is provided.
     - Verifies if the file is a text file.
 
@@ -143,8 +143,8 @@ def process_file(file_path):
     Reads the content of a file and computes its MD5 hash.
 
     This function attempts to read the file as UTF-8 text and compute its MD5 hash.
-    If the file cannot be read as UTF-8 or any other error occurs, it logs the issue
-    and returns None.
+    If the file cannot be read as UTF-8 or any other error occurs,
+    it logs the issue and returns None.
 
     Args:
         file_path (str): The path to the file to be processed.
@@ -170,9 +170,9 @@ def get_local_files(local_path):
     This function walks through the directory specified by `local_path`, applying several filters to each file:
     - Excludes files in directories like .git, .svn, etc.
     - Skips files larger than a specified maximum size (default 200KB, configurable).
-    - Ignores temporary editor files (ending with '~').
+    - Ignores temporary editor files (ending with ~).
     - Applies .gitignore rules if a .gitignore file is present in the `local_path`.
-    - Applies .gitignore rules if a .claudeignore file is present in the `local_path`.
+    - Applies .claudeignore rules if a .claudeignore file is present in the `local_path`.
     - Checks if the file is a text file before processing.
     Each file that passes these filters is read, and its content is hashed using MD5. The function returns a dictionary
     where each key is the relative path of a file from `local_path`, and its value is the MD5 hash of the file's content.
