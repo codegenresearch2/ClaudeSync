@@ -170,6 +170,7 @@ def handle_errors(func):
             return func(*args, **kwargs)
         except (ConfigurationError, ProviderError) as e:
             click.echo(f"Error: {str(e)}")
+            return 1
     return wrapper
 
 def validate_and_get_provider(config, require_org=True, require_project=False):
