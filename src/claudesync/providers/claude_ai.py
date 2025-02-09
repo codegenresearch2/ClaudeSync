@@ -14,23 +14,19 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
-            "Accept-Encoding": "gzip",
         }
 
-        cookies = {
-            "sessionKey": self.session_key,
-        }
-
-        # Combine headers and cookies
-        combined_headers = headers.copy()
-        combined_headers.update(cookies)
+        # Add cookies to headers
+        headers["Cookie"] = f"sessionKey={self.session_key}"
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
-            self.logger.debug(f"Headers: {combined_headers}")
+            self.logger.debug(f"Headers: {headers}")
+            if data:
+                self.logger.debug(f"Request data: {data}")
 
             # Prepare the request
-            req = urllib.request.Request(url, method=method.upper(), headers=combined_headers)
+            req = urllib.request.Request(url, method=method.upper(), headers=headers)
             if data:
                 json_data = json.dumps(data).encode("utf-8")
                 req.data = json_data
