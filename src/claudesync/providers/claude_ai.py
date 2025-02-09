@@ -72,8 +72,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-        content = e.read().decode("utf-8")
-        self.logger.debug(f"Response content: {content}")
+        try:
+            content = e.read().decode("utf-8")
+            self.logger.debug(f"Response content: {content}")
+        except UnicodeDecodeError:
+            self.logger.error(f"Failed to decode response content: {str(e)}")
+
         if e.code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
@@ -86,7 +90,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             raise ProviderError(error_msg)
         if e.code == 429:
             try:
-                error_data = json.loads(content)
+                error_data = json.loads(e.read().decode("utf-8"))
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
