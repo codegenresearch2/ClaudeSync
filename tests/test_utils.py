@@ -48,12 +48,20 @@ class TestUtils(unittest.TestCase):
 
             local_files = get_local_files(tmpdir)
 
+            # Print the local files for debugging purposes
+            print("Local files:", local_files)
+
+            # Assert the presence of expected files
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
             self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
+
+            # Assert the absence of ignored files
             self.assertNotIn("target/output.txt", local_files)
             self.assertNotIn("build/output.txt", local_files)
-            self.assertEqual(len(local_files), 3)  # Ensure the correct number of files is returned
+
+            # Assert the correct number of files
+            self.assertEqual(len(local_files), 3)
 
     def test_load_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -84,6 +92,10 @@ class TestUtils(unittest.TestCase):
 
             local_files = get_local_files(tmpdir)
 
+            # Print the local files for debugging purposes
+            print("Local files:", local_files)
+
+            # Assert the presence of expected files
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
             self.assertNotIn("build/output.txt", local_files)
