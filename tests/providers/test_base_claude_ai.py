@@ -25,12 +25,13 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
             result, ("sk-ant-test123", datetime.datetime(2099, 9, 3, 5, 49, 8))
         )
         self.assertEqual(self.provider.session_key, "sk-ant-test123")
+        mock_echo.assert_called()
+
         expected_calls = [
             call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
             call("Please enter the expires time for the sessionKey (format: 'Day, DD Mon YYYY HH:MM:SS GMT'):", default="Tue, 03 Sep 2099 05:49:08 GMT", type=str)
         ]
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
-        mock_echo.assert_called()
 
     @patch("claudesync.cli.main.ConfigManager")
     @patch("claudesync.providers.base_claude_ai.click.prompt")
@@ -49,8 +50,6 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         )
         self.assertEqual(mock_prompt.call_count, 3)
         expected_calls = [
-            call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
-            call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
             call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
             call("Please enter the expires time for the sessionKey (format: 'Day, DD Mon YYYY HH:MM:SS GMT'):", default="Tue, 03 Sep 2099 05:49:08 GMT", type=str)
         ]
