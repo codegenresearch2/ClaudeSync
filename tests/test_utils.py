@@ -60,7 +60,7 @@ class TestUtils(unittest.TestCase):
 
             # Create .claudeignore file
             with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
-                f.write("*.log\n/build/\n")
+                f.write("*.log\n/build/\n/target/\n")
 
             # Create claude_chats directory
             os.mkdir(os.path.join(tmpdir, "claude_chats"))
