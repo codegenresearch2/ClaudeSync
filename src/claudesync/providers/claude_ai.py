@@ -46,6 +46,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 if "Content-Encoding" in response_headers and response_headers["Content-Encoding"] == "gzip":
                     response_data = gzip.decompress(response_data)
 
+                if not response_data:
+                    return None
+
                 try:
                     return json.loads(response_data.decode("utf-8"))
                 except json.JSONDecodeError as e:
