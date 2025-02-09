@@ -1,11 +1,7 @@
 import unittest
 import os
 import tempfile
-import logging
 from claudesync.utils import (compute_md5_hash, load_gitignore, get_local_files, load_claudeignore)
-
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
 
 class TestUtils(unittest.TestCase):
 
