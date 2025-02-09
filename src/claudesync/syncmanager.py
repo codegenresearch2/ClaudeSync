@@ -87,8 +87,8 @@ class SyncManager:
         """
         remote_checksum = compute_md5_hash(remote_file['content'])
         if local_checksum != remote_checksum:
-            logger.debug(f'Updating {local_file} on remote...')
-            with tqdm(total=2, desc=f'Updating {local_file}', leave=False) as pbar:
+            logger.debug(f'Updating {remote_file['file_name']} on remote...')
+            with tqdm(total=2, desc=f'Updating {remote_file['file_name']}', leave=False) as pbar:
                 self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
                 pbar.update(1)
                 with open(os.path.join(self.local_path, local_file), 'r', encoding='utf-8') as file:
