@@ -7,11 +7,9 @@ from ..config_manager import ConfigManager
 from ..exceptions import ProviderError
 import click
 
-
 def is_url_encoded(s):
     decoded_s = urllib.parse.unquote(s)
     return decoded_s != s
-
 
 def _get_session_key_expiry():
     while True:
@@ -28,7 +26,6 @@ def _get_session_key_expiry():
             return expires_on
         except ValueError:
             print("The entered date does not match the required format. Please try again.")
-
 
 class BaseClaudeAIProvider(BaseProvider):
     BASE_URL = "https://api.claude.ai/api"
@@ -74,8 +71,8 @@ class BaseClaudeAIProvider(BaseProvider):
                 if organizations:
                     break  # Exit the loop if get_organizations is successful
             except ProviderError as e:
-                print(e)
-                print("Failed to retrieve organizations. Please enter a valid sessionKey.")
+                click.echo(e)
+                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
         return self.session_key, self.session_key_expiry
 
