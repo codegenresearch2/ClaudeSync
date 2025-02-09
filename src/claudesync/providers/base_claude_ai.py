@@ -31,6 +31,9 @@ class BaseClaudeAIProvider(BaseProvider):
     BASE_URL = "https://api.claude.ai/api"
 
     def __init__(self, session_key=None, session_key_expiry=None):
+        if 'requests' not in globals():
+            raise ModuleNotFoundError("The 'requests' module is not available. Please install it to use this provider.")
+        
         self.config = ConfigManager()
         self.session_key = session_key
         self.session_key_expiry = session_key_expiry
