@@ -32,8 +32,10 @@ class SyncManager:
         """
         Synchronizes files between the local directory and the remote storage.
 
-        This method manages the synchronization from local to remote, updates local timestamps, performs two-way sync if enabled,
-        and deletes remote files that are no longer present locally.
+        This method orchestrates the synchronization process by managing file uploads, deletions, and updates.
+        It ensures that local files are uploaded to the remote storage and that remote files are updated or deleted
+        if they no longer exist locally. If two-way sync is enabled, it also synchronizes files from the remote storage
+        back to the local directory.
 
         Args:
             local_files (dict): Dictionary of local file names and their corresponding checksums.
