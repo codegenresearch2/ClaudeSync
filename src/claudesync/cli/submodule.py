@@ -44,7 +44,7 @@ def ls(config):
 @click.pass_obj
 @handle_errors
 def create(config):
-    """Create new projects for each detected submodule."""
+    """Create new projects for each detected submodule that doesn't already exist remotely."""
     provider = validate_and_get_provider(config, require_project=True)
     active_organization_id = config.get("active_organization_id")
     active_project_id = config.get("active_project_id")
@@ -61,6 +61,9 @@ def create(config):
     submodule_detect_filenames = config.get("submodule_detect_filenames", [])
     submodules_with_files = detect_submodules(local_path, submodule_detect_filenames)
 
+    # Fetch all remote projects to check for existing submodules
+    all_remote_projects = provider.get_projects(active_organization_id, include_archived=False)
+
     # Extract only the submodule paths from the list of tuples
     submodules = [submodule for submodule, _ in submodules_with_files]
 
@@ -75,18 +78,27 @@ def create(config):
         new_project_name = f"{active_project_name}-SubModule-{submodule_name}"
         description = f"Submodule '{submodule_name}' for project '{active_project_name}' (ID: {active_project_id})"
 
-        try:
-            new_project = provider.create_project(
-                active_organization_id, new_project_name, description
-            )
-            click.echo(
-                f"{i}. Created project '{new_project_name}' (ID: {new_project['uuid']}) for submodule '{submodule_name}'"
-            )
-        except ProviderError as e:
-            click.echo(
-                f"Failed to create project for submodule '{submodule_name}': {str(e)}"
-            )
-            logger.error(f"Failed to create project for submodule '{submodule_name}': {str(e)}")
+        # Check if a project for this submodule already exists remotely
+        existing_project = next(
+            (proj for proj in all_remote_projects if proj["name"] == new_project_name),
+            None
+        )
+
+        if existing_project:
+            click.echo(f"{i}. Project for submodule '{submodule_name}' already exists. Skipping creation.")
+        else:
+            try:
+                new_project = provider.create_project(
+                    active_organization_id, new_project_name, description
+                )
+                click.echo(
+                    f"{i}. Created project '{new_project_name}' (ID: {new_project['uuid']}) for submodule '{submodule_name}'"
+                )
+            except ProviderError as e:
+                click.echo(
+                    f"Failed to create project for submodule '{submodule_name}': {str(e)}"
+                )
+                logger.error(f"Failed to create project for submodule '{submodule_name}': {str(e)}")
 
     click.echo(
         "\nSubmodule projects created successfully. You can now select and sync these projects individually."
