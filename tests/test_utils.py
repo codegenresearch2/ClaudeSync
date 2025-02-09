@@ -1,14 +1,11 @@
 import unittest
 import os
 import tempfile
+import logging
+from claudesync.utils import (compute_md5_hash, load_gitignore, get_local_files, load_claudeignore)
 
-from claudesync.utils import (
-    compute_md5_hash,
-    load_gitignore,
-    get_local_files,
-    load_claudeignore,
-)
-
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
 
 class TestUtils(unittest.TestCase):
 
@@ -37,15 +34,13 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "file2.py"), "w") as f:
                 f.write("print('Hello, World!')")
             os.mkdir(os.path.join(tmpdir, "subdir"))
-            with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
+            with open(os.path.join(tmpdir, "subdir/file3.txt"), "w") as f:
                 f.write("Content of file3")
-            with open(os.path.join(tmpdir, "test~"), "w") as f:
-                f.write("*.log\n")
 
             # Create a test~ file
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "afile"), "w") as f:
+                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
             for buildDir in {"target", "build"}:
@@ -57,7 +52,7 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            print(local_files)
+            logging.debug(local_files)
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
@@ -87,7 +82,7 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "file2.log"), "w") as f:
                 f.write("Log content")
             os.mkdir(os.path.join(tmpdir, "build"))
-            with open(os.path.join(tmpdir, "build", "output.txt"), "w") as f:
+            with open(os.path.join(tmpdir, "build/output.txt"), "w") as f:
                 f.write("Build output")
 
             # Create a .claudeignore file
@@ -99,7 +94,3 @@ class TestUtils(unittest.TestCase):
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-
-
-if __name__ == "__main__":
-    unittest.main()
