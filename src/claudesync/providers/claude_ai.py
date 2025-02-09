@@ -17,6 +17,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "sessionKey": self.session_key,
         }
 
+        cookie_string = '; '.join([f"{key}={value}" for key, value in cookies.items()])
+        headers["Cookie"] = cookie_string
+
         request = urllib.request.Request(url, headers=headers, method=method)
 
         if data:
@@ -27,7 +30,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
+            self.logger.debug(f"Cookies: {cookie_string}")
             if data:
                 self.logger.debug(f"Request data: {data}")
 
