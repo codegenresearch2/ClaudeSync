@@ -41,7 +41,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                     error_msg = (
                         "Received a 403 Forbidden error. Your session key might be invalid. "
                         "Please try logging out and logging in again. If the issue persists, "
-                        "you can try using the claude.ai-curl provider as a workaround:"\n                        "claudesync api logout\n"
+                        "you can try using the claude.ai-curl provider as a workaround:"
+                        "claudesync api logout\n"
                         "claudesync api login claude.ai-curl"
                     )
                     self.logger.error(error_msg)
