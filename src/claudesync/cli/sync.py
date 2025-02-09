@@ -28,7 +28,7 @@ def install_completion(shell):
     """Install completion for the specified shell."""
     if shell is None:
         shell = click_completion.get_auto_shell()
-        click.echo('Shell is set to \'%s\'' %% shell)
+        click.echo(f'Shell is set to \'{shell}\'')  # Corrected string formatting
     click_completion.install(shell=shell)
     click.echo('Completion installed.')
 
