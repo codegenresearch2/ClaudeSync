@@ -41,10 +41,10 @@ class SyncManager:
         Args:
             local_files (dict): Dictionary of local file names and their corresponding checksums.
             remote_files (list): List of dictionaries representing remote files, each containing:
-                                 - "file_name" (str): Name of the file.
-                                 - "content" (str): Content of the file.
-                                 - "created_at" (str): Timestamp when the file was created in ISO format.
-                                 - "uuid" (str): Unique identifier of the remote file.
+                                 - 'file_name' (str): Name of the file.
+                                 - 'content' (str): Content of the file.
+                                 - 'created_at' (str): Timestamp when the file was created in ISO format.
+                                 - 'uuid' (str): Unique identifier of the remote file.
         """
         remote_files_to_delete = {rf['file_name'] for rf in remote_files}
         synced_files = set()
@@ -129,15 +129,13 @@ class SyncManager:
             remote_files (list): List of dictionaries representing remote files.
             synced_files (set): Set of file names that have been synchronized.
         """
-        with tqdm(total=len(synced_files), desc='Updating local timestamps') as pbar:
-            for remote_file in remote_files:
-                if remote_file['file_name'] in synced_files:
-                    local_file_path = os.path.join(self.local_path, remote_file['file_name'])
-                    if os.path.exists(local_file_path):
-                        remote_timestamp = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00')).timestamp()
-                        os.utime(local_file_path, (remote_timestamp, remote_timestamp))
-                        logger.debug(f'Updated timestamp on local file {local_file_path}')
-                    pbar.update(1)
+        for remote_file in remote_files:
+            if remote_file['file_name'] in synced_files:
+                local_file_path = os.path.join(self.local_path, remote_file['file_name'])
+                if os.path.exists(local_file_path):
+                    remote_timestamp = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00')).timestamp()
+                    os.utime(local_file_path, (remote_timestamp, remote_timestamp))
+                    logger.debug(f'Updated timestamp on local file {local_file_path}')
 
     def sync_remote_to_local(self, remote_file, remote_files_to_delete, synced_files):
         """
@@ -175,10 +173,8 @@ class SyncManager:
         remote_mtime = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00'))
         if remote_mtime > local_mtime:
             logger.debug(f'Updating local file {remote_file['file_name']} from remote...')
-            with tqdm(total=1, desc=f'Updating {remote_file['file_name']}', leave=False) as pbar:
-                with open(local_file_path, 'w', encoding='utf-8') as file:
-                    file.write(remote_file['content'])
-                pbar.update(1)
+            with open(local_file_path, 'w', encoding='utf-8') as file:
+                file.write(remote_file['content'])
             synced_files.add(remote_file['file_name'])
             if remote_file['file_name'] in remote_files_to_delete:
                 remote_files_to_delete.remove(remote_file['file_name'])
@@ -196,10 +192,8 @@ class SyncManager:
             synced_files (set): Set of file names that have been synchronized.
         """
         logger.debug(f'Creating new local file {remote_file['file_name']} from remote...')
-        with tqdm(total=1, desc=f'Creating {remote_file['file_name']}', leave=False) as pbar:
-            with open(local_file_path, 'w', encoding='utf-8') as file:
-                file.write(remote_file['content'])
-            pbar.update(1)
+        with open(local_file_path, 'w', encoding='utf-8') as file:
+            file.write(remote_file['content'])
         synced_files.add(remote_file['file_name'])
         if remote_file['file_name'] in remote_files_to_delete:
             remote_files_to_delete.remove(remote_file['file_name'])
@@ -216,7 +210,5 @@ class SyncManager:
         """
         logger.debug(f'Deleting {file_to_delete} from remote...')
         remote_file = next(rf for rf in remote_files if rf['file_name'] == file_to_delete)
-        with tqdm(total=1, desc=f'Deleting {file_to_delete}', leave=False) as pbar:
-            self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
-            pbar.update(1)
+        self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
         time.sleep(self.upload_delay)
