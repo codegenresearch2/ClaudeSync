@@ -37,19 +37,25 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "subdir/file3.txt"), "w") as f:
                 f.write("Content of file3")
 
-            # Create a test~ file
+            # Create VCS directories
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
                 with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
+            # Create build directories
             for buildDir in {"target", "build"}:
                 os.mkdir(os.path.join(tmpdir, buildDir))
                 with open(os.path.join(tmpdir, buildDir, "output.txt"), "w") as f:
                     f.write("Build output")
 
+            # Create .gitignore file
             with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
                 f.write("*.log\n/build\ntarget")
+
+            # Create .claudeignore file
+            with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
+                f.write("*.log\n/build/")
 
             local_files = get_local_files(tmpdir)
             print(local_files)  # Use print for debugging output
@@ -85,7 +91,7 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "build/output.txt"), "w") as f:
                 f.write("Build output")
 
-            # Create a .claudeignore file
+            # Create .claudeignore file
             with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
                 f.write("*.log\n/build/\n")
 
