@@ -7,6 +7,7 @@ from .exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
+# Helper function to save artifacts
 def save_artifacts(chat_folder, artifacts):
     artifact_folder = os.path.join(chat_folder, 'artifacts')
 os.makedirs(artifact_folder, exist_ok=True)
@@ -19,7 +20,7 @@ os.makedirs(artifact_folder, exist_ok=True)
             with open(artifact_file, 'w') as f:
                 f.write(artifact['content'])
 
-
+# Function to sync a single chat
 def sync_chat(provider, config, chat):
     chat_destination = config.get('local_path', '') + '/chats'
 os.makedirs(chat_destination, exist_ok=True)
@@ -45,7 +46,7 @@ os.makedirs(chat_folder, exist_ok=True)
                 logger.info(f'Found {len(artifacts)} artifacts in message {message['uuid']}')
                 save_artifacts(chat_folder, artifacts)
 
-
+# Main function to sync all chats
 def sync_chats(provider, config, sync_all=False):
     local_path = config.get('local_path')
     if not local_path:
@@ -74,7 +75,6 @@ def sync_chats(provider, config, sync_all=False):
 
     logger.debug(f'Chats synchronized to {local_path}/chats')
 
-
 # Helper function to get file extension from artifact type
 def get_file_extension(artifact_type):
     type_to_extension = {
@@ -86,12 +86,11 @@ def get_file_extension(artifact_type):
     }
     return type_to_extension.get(artifact_type, 'txt')
 
-
 # Helper function to extract artifacts from text
 def extract_artifacts(text):
     artifacts = []
     pattern = re.compile(
-        r'<antArtifact\s+identifier="([^\"]+)"\s+type="([^\"]+)"\s+title="([^\"]+)">([\s\S]*?)</antArtifact>',
+        r'<antArtifact\s+identifier="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)</antArtifact>',
         re.MULTILINE,
     )
     matches = pattern.findall(text)
