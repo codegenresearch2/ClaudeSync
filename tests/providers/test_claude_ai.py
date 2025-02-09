@@ -31,7 +31,11 @@ class TestClaudeAIProvider(unittest.TestCase):
 
     @patch("urllib.request.urlopen")
     def test_make_request_failure(self, mock_urlopen):
-        mock_urlopen.side_effect = urllib.error.URLError("Test error")
+        mock_response = MagicMock()
+        mock_response.status = 403
+        mock_response.__enter__.return_value = mock_response
+        mock_response.read.return_value = b'{"error": "Forbidden"}'
+        mock_urlopen.return_value = mock_response
 
         with self.assertRaises(ProviderError):
             self.provider._make_request("GET", "/test")
