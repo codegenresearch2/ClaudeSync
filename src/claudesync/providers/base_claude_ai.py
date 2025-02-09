@@ -74,6 +74,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def get_organizations(self):
         url = f"{self.BASE_URL}/organizations"
         req = urllib.request.Request(url, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             organizations = json.loads(response_data)
@@ -84,6 +85,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def get_projects(self, organization_id, include_archived=False):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects"
         req = urllib.request.Request(endpoint, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             projects = json.loads(response_data)
@@ -94,6 +96,7 @@ class BaseClaudeAIProvider(BaseProvider):
         req = urllib.request.Request(url, method=method)
         if data:
             req.data = data
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
@@ -101,6 +104,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def list_files(self, organization_id, project_id):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects/{project_id}/docs"
         req = urllib.request.Request(endpoint, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             files = json.loads(response_data)
@@ -108,8 +112,9 @@ class BaseClaudeAIProvider(BaseProvider):
 
     def upload_file(self, organization_id, project_id, file_name, content):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects/{project_id}/docs"
-        data = json.dumps({"file_name": file_name, "content": content})
-        req = urllib.request.Request(endpoint, data=data.encode('utf-8'), method="POST")
+        data = {"file_name": file_name, "content": content}
+        req = urllib.request.Request(endpoint, data=json.dumps(data).encode('utf-8'), method="POST")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
@@ -117,22 +122,25 @@ class BaseClaudeAIProvider(BaseProvider):
     def delete_file(self, organization_id, project_id, file_uuid):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects/{project_id}/docs/{file_uuid}"
         req = urllib.request.Request(endpoint, method="DELETE")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
 
     def archive_project(self, organization_id, project_id):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects/{project_id}"
-        data = json.dumps({"is_archived": True})
-        req = urllib.request.Request(endpoint, data=data.encode('utf-8'), method="PUT")
+        data = {"is_archived": True}
+        req = urllib.request.Request(endpoint, data=json.dumps(data).encode('utf-8'), method="PUT")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
 
     def create_project(self, organization_id, name, description=""):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects"
-        data = json.dumps({"name": name, "description": description, "is_private": True})
-        req = urllib.request.Request(endpoint, data=data.encode('utf-8'), method="POST")
+        data = {"name": name, "description": description, "is_private": True}
+        req = urllib.request.Request(endpoint, data=json.dumps(data).encode('utf-8'), method="POST")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
@@ -140,6 +148,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def get_chat_conversations(self, organization_id):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/chat_conversations"
         req = urllib.request.Request(endpoint, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
@@ -147,6 +156,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def get_published_artifacts(self, organization_id):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/published_artifacts"
         req = urllib.request.Request(endpoint, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
@@ -154,6 +164,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def get_chat_conversation(self, organization_id, conversation_id):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/chat_conversations/{conversation_id}?rendering_mode=raw"
         req = urllib.request.Request(endpoint, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
@@ -161,6 +172,7 @@ class BaseClaudeAIProvider(BaseProvider):
     def get_artifact_content(self, organization_id, artifact_uuid):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/published_artifacts"
         req = urllib.request.Request(endpoint, method="GET")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             artifacts = json.loads(response_data)
@@ -171,8 +183,9 @@ class BaseClaudeAIProvider(BaseProvider):
 
     def delete_chat(self, organization_id, conversation_uuids):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/chat_conversations/delete_many"
-        data = json.dumps({"conversation_uuids": conversation_uuids})
-        req = urllib.request.Request(endpoint, data=data.encode('utf-8'), method="POST")
+        data = {"conversation_uuids": conversation_uuids}
+        req = urllib.request.Request(endpoint, data=json.dumps(data).encode('utf-8'), method="POST")
+        req.add_header("Authorization", self.session_key)
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             return json.loads(response_data)
