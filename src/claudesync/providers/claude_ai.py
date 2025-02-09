@@ -17,7 +17,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "sessionKey": self.session_key,
         }
 
-        request = urllib.request.Request(url, headers=headers, cookies=cookies, method=method)
+        request = urllib.request.Request(url, headers=headers, method=method)
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
@@ -26,33 +26,32 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             if data:
                 self.logger.debug(f"Request data: {data}")
 
-            response = urllib.request.urlopen(request)
+            with urllib.request.urlopen(request) as response:
+                response_content = response.read()
+                if response.info().get("Content-Encoding") == "gzip":
+                    response_content = gzip.decompress(response_content)
 
-            self.logger.debug(f"Response status code: {response.status}")
-            self.logger.debug(f"Response headers: {response.headers}")
-            content = response.read()
-            if response.info().get("Content-Encoding") == "gzip":
-                content = gzip.decompress(content)
-            self.logger.debug(f"Response content: {content[:1000]}...")
+                self.logger.debug(f"Response status code: {response.status}")
+                self.logger.debug(f"Response headers: {response.headers}")
+                self.logger.debug(f"Response content: {response_content[:1000]}...")
 
-            if response.status == 403:
-                error_msg = (
-                    "Received a 403 Forbidden error. Your session key might be invalid. "
-                    "Please try logging out and logging in again. If the issue persists, "
-                    "you can try using the claude.ai-curl provider as a workaround:
-"
-                    "claudesync api logout\n"
-                    "claudesync api login claude.ai-curl"
-                )
-                self.logger.error(error_msg)
-                raise ProviderError(error_msg)
+                if response.status == 403:
+                    error_msg = (
+                        "Received a 403 Forbidden error. Your session key might be invalid. "
+                        "Please try logging out and logging in again. If the issue persists, "
+                        "you can try using the claude.ai-curl provider as a workaround:"
+                        "claudesync api logout\n"
+                        "claudesync api login claude.ai-curl"
+                    )
+                    self.logger.error(error_msg)
+                    raise ProviderError(error_msg)
 
-            response.raise_for_status()
+                response.raise_for_status()
 
-            if not content:
-                return None
+                if not response_content:
+                    return None
 
-            return json.loads(content)
+                return json.loads(response_content.decode('utf-8'))
 
         except urllib.error.HTTPError as e:
             self.logger.error(f"HTTP error occurred: {e.code} - {e.reason}")
@@ -63,5 +62,5 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             raise ProviderError(f"URL error: {e.reason}")
         except json.JSONDecodeError as json_err:
             self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
-            self.logger.error(f"Response content: {content}")
+            self.logger.error(f"Response content: {response_content}")
             raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
