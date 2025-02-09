@@ -46,6 +46,19 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
                 f.write("*.log\n/build/\n")
 
+            # Create version control system directories
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
+                os.mkdir(os.path.join(tmpdir, vcs))
+
+            # Create temporary editor file
+            with open(os.path.join(tmpdir, "test~"), "w") as f:
+                f.write("*.log\n")
+
+            # Create build directory and file
+            os.mkdir(os.path.join(tmpdir, "build"))
+            with open(os.path.join(tmpdir, "build", "output.txt"), "w") as f:
+                f.write("Build output")
+
             local_files = get_local_files(tmpdir)
 
             # Print the local files for debugging purposes
