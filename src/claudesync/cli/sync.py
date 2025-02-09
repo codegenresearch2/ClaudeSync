@@ -12,93 +12,48 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-@click.command()
-@click.pass_obj
-@handle_errors
-def ls(config):
-    """List files in the active remote project."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get('active_organization_id')
-    active_project_id = config.get('active_project_id')
-    files = provider.list_files(active_organization_id, active_project_id)
-    if not files:
-        click.echo('No files found in the active project.')
-    else:
-        click.echo(
-            f"Files in project '{config.get('active_project_name')}' (ID: {active_project_id}):"
-        )
-        for file in files:
-            click.echo(
-                f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})"
-            )
+@click.group()
+@click.pass_context
+def cli(ctx):
+    """ClaudeSync: Synchronize local files with ai projects."""
+    ctx.obj = ConfigManager()
 
-@click.command()
-@click.pass_obj
-@handle_errors
-def sync(config):
-    """Synchronize both projects and chats."""
-    provider = validate_and_get_provider(config)
-
-    # Sync projects
-    sync_manager = SyncManager(provider, config)
-    remote_files = provider.list_files(
-        sync_manager.active_organization_id,
-        sync_manager.active_project_id
-    )
-    local_files = get_local_files(config.get('local_path'))
-    sync_manager.sync(local_files, remote_files)
-    click.echo('Project sync completed successfully.')
-
-    # Sync chats
-    sync_chats(provider, config)
-    click.echo('Chat sync completed successfully.')
-
-
-def validate_local_path(local_path):
-    if not local_path:
-        click.echo(
-            'No local path set. Please select or create a project to set the local path.'
-        )
-        sys.exit(1)
-    if not os.path.exists(local_path):
-        click.echo(f'The configured local path does not exist: {local_path}')
-        click.echo('Please update the local path by selecting or creating a project.')
-        sys.exit(1)
-
-@click.command()
-@click.pass_obj
-@click.option(
-    '--interval', type=int, default=5, prompt='Enter sync interval in minutes'
+@cli.command()
+@click.argument(
+    'shell',
+    required=False,
+    type=click.Choice(['bash', 'zsh', 'fish', 'powershell'])
 )
-@handle_errors
-def schedule(config, interval):
-    """Set up automated synchronization at regular intervals."""
-    claudesync_path = shutil.which('claudesync')
-    if not claudesync_path:
-        click.echo(
-            'Error: claudesync not found in PATH. Please ensure it's installed correctly.'
-        )
-        sys.exit(1)
+def install_completion(shell):
+    """Install completion for the specified shell."""
+    if shell is None:
+        shell = click_completion.get_auto_shell()
+        click.echo('Shell is set to \'%s\'' %% shell)
+    click_completion.install(shell=shell)
+    click.echo('Completion installed.')
 
-    if sys.platform.startswith('win'):
-        setup_windows_task(claudesync_path, interval)
-    else:
-        setup_unix_cron(claudesync_path, interval)
+@cli.command()
+@click.pass_obj
+def status(config):
+    """Display current configuration status."""
+    for key in [
+        'active_provider',
+        'active_organization_id',
+        'active_project_id',
+        'active_project_name',
+        'local_path',
+        'log_level']:
+        value = config.get(key)
+        click.echo(f'{key.replace('_', ' ').capitalize()}: {value or 'Not set'}')
 
+cli.add_command(api)
+cli.add_command(organization)
+cli.add_command(project)
+cli.add_command(ls)
+cli.add_command(sync)
+cli.add_command(schedule)
+cli.add_command(config)
+cli.add_command(chat)
 
-def setup_windows_task(claudesync_path, interval):
-    click.echo('Windows Task Scheduler setup:')
-    command = f'schtasks /create /tn "ClaudeSync" /tr "{claudesync_path} sync" /sc minute /mo {interval}'
-    click.echo(f"Run this command to create the task:n{command}")
-    click.echo('nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
-
-
-def setup_unix_cron(claudesync_path, interval):
-    cron = CronTab(user=True)
-    job = cron.new(command=f"{claudesync_path} sync")
-    job.minute.every(interval)
-    cron.write()
-    click.echo(f"Cron job created successfully! It will run every {interval} minutes.")
-    click.echo(
-        "nTo remove the cron job, run: crontab -e and remove the line for ClaudeSync"
-    )
+if __name__ == '__main__':
+    cli()
