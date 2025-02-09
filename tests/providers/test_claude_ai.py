@@ -41,6 +41,7 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 403
         mock_response.__enter__.return_value = mock_response
+        mock_response.read.return_value = b'{"error": "Forbidden"}'
         mock_urlopen.return_value = mock_response
 
         with self.assertRaises(ProviderError) as context:
