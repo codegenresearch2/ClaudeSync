@@ -3,9 +3,7 @@ import hashlib
 import pathspec
 import logging
 from functools import wraps
-from urllib.error import HTTPError
-from urllib.request import urlopen, Request
-from gzip import decompress
+import click
 from claudesync.exceptions import ConfigurationError, ProviderError
 from claudesync.provider_factory import get_provider
 from claudesync.config_manager import ConfigManager
@@ -73,7 +71,6 @@ def is_text_file(file_path, sample_size=8192):
         with open(file_path, "rb") as file:
             return b"\x00" not in file.read(sample_size)
     except IOError:
-        logger.error(f"Error reading file {file_path}")
         return False
 
 def compute_md5_hash(content):
@@ -210,7 +207,7 @@ def handle_errors(func):
         try:
             return func(*args, **kwargs)
         except (ConfigurationError, ProviderError) as e:
-            logger.error(f"Error: {str(e)}")
+            click.echo(f"Error: {str(e)}")
             return 0
     return wrapper
 
