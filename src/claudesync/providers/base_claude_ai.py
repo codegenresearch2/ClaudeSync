@@ -19,10 +19,12 @@ def is_url_encoded(s):
 def _get_session_key_expiry():
     while True:
         date_format = "%a, %d %b %Y %H:%M:%S %Z"
-        default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
+        default_expires = datetime.datetime.now(
+            datetime.timezone.utc
+        ) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
         expires = click.prompt(
-            "Please enter the expires time for the sessionKey",
+            "Please enter the expires time for the sessionKey (optional)",
             default=formatted_expires,
             type=str,
         ).strip()
@@ -30,9 +32,7 @@ def _get_session_key_expiry():
             expires_on = datetime.datetime.strptime(expires, date_format)
             return expires_on
         except ValueError:
-            print(
-                "The entered date does not match the required format. Please try again."
-            )
+            print("The entered date does not match the required format. Please try again.")
 
 
 class BaseClaudeAIProvider(BaseProvider):
@@ -62,33 +62,17 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'")
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
-        while True:
-            session_key = click.prompt("Please enter your sessionKey", type=str)
-            if not session_key.startswith("sk-ant"):
-                click.echo(
-                    "Invalid sessionKey format. Please make sure it starts with 'sk-ant'."
-                )
-                continue
-            if is_url_encoded(session_key):
-                click.echo(
-                    "The session key appears to be URL-encoded. Please provide the decoded version."
-                )
-                continue
+        self.session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
+        expires = _get_session_key_expiry()
+        self.session_key_expiry = expires
 
-            expires = _get_session_key_expiry()
-            self.session_key = session_key
-            self.session_key_expiry = expires
-            try:
-                organizations = self.get_organizations()
-                if organizations:
-                    break  # Exit the loop if get_organizations is successful
-            except ProviderError as e:
-                click.echo(e)
-                click.echo(
-                    "Failed to retrieve organizations. Please enter a valid sessionKey."
-                )
-
-        return self.session_key, self.session_key_expiry
+        try:
+            organizations = self.get_organizations()
+            if organizations:
+                return self.session_key, self.session_key_expiry
+        except ProviderError as e:
+            click.echo(e)
+            click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
     def get_organizations(self):
         url = urllib.parse.urljoin(self.BASE_URL, "/organizations")
@@ -101,10 +85,10 @@ class BaseClaudeAIProvider(BaseProvider):
             with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
                 organizations = json.loads(decompressed.read().decode('utf-8'))
             return [
-                {"id": org["uuid"], "name": org["name"]}
+                {"id": org['uuid'], "name": org['name']}
                 for org in organizations
-                if (set(org.get("capabilities", [])) & {"chat", "claude_pro"} or
-                    set(org.get("capabilities", [])) & {"chat", "raven"})
+                if (set(org.get('capabilities', [])) & {'chat', 'claude_pro'} or
+                    set(org.get('capabilities', [])) & {'chat', 'raven'})
             ]
         except urllib.error.HTTPError as e:
             raise ProviderError(f"HTTP error: {e.code}")
@@ -123,154 +107,13 @@ class BaseClaudeAIProvider(BaseProvider):
                 projects = json.loads(decompressed.read().decode('utf-8'))
             return [
                 {
-                    "id": project["uuid"], "name": project["name"],
-                    "archived_at": project.get("archived_at")
+                    "id": project['uuid'],
+                    "name": project['name'],
+                    "archived_at": project.get('archived_at')
                 }
                 for project in projects
-                if include_archived or project.get("archived_at") is None
+                if include_archived or project.get('archived_at') is None
             ]
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def list_files(self, organization_id, project_id):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/projects/{project_id}/docs")
-        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.session_key}"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-            data = response.read()
-            with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
-                files = json.loads(decompressed.read().decode('utf-8'))
-            return [
-                {
-                    "uuid": file["uuid"], "file_name": file["file_name"],
-                    "content": file["content"], "created_at": file["created_at"]
-                }
-                for file in files
-            ]
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def upload_file(self, organization_id, project_id, file_name, content):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/projects/{project_id}/docs")
-        data = json.dumps({"file_name": file_name, "content": content}).encode('utf-8')
-        request = urllib.request.Request(url, data=data, headers={"Authorization": f"Bearer {self.session_key}", "Content-Type": "application/json"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-            return json.loads(response.read().decode('utf-8'))
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def delete_file(self, organization_id, project_id, file_uuid):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/projects/{project_id}/docs/{file_uuid}")
-        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.session_key}"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 204:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def archive_project(self, organization_id, project_id):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/projects/{project_id}")
-        data = json.dumps({"is_archived": True}).encode('utf-8')
-        request = urllib.request.Request(url, data=data, headers={"Authorization": f"Bearer {self.session_key}", "Content-Type": "application/json"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def create_project(self, organization_id, name, description=""):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/projects")
-        data = json.dumps({"name": name, "description": description, "is_private": True}).encode('utf-8')
-        request = urllib.request.Request(url, data=data, headers={"Authorization": f"Bearer {self.session_key}", "Content-Type": "application/json"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def get_chat_conversations(self, organization_id):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/chat_conversations")
-        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.session_key}"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-            data = response.read()
-            with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
-                conversations = json.loads(decompressed.read().decode('utf-8'))
-            return conversations
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def get_published_artifacts(self, organization_id):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/published_artifacts")
-        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.session_key}"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-            data = response.read()
-            with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
-                artifacts = json.loads(decompressed.read().decode('utf-8'))
-            return artifacts
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def get_chat_conversation(self, organization_id, conversation_id):
-        url = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/chat_conversations/{conversation_id}?rendering_mode=raw")
-        request = urllib.request.Request(url, headers={"Authorization": f"Bearer {self.session_key}"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
-            data = response.read()
-            with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
-                conversation = json.loads(decompressed.read().decode('utf-8'))
-            return conversation
-        except urllib.error.HTTPError as e:
-            raise ProviderError(f"HTTP error: {e.code}")
-        except Exception as e:
-            raise ProviderError(f"An error occurred: {str(e)}")
-
-    def get_artifact_content(self, organization_id, artifact_uuid):
-        artifacts = self.get_published_artifacts(organization_id)
-        for artifact in artifacts:
-            if artifact["published_artifact_uuid"] == artifact_uuid:
-                return artifact.get("artifact_content", "")
-        raise ProviderError(f"Artifact with UUID {artifact_uuid} not found")
-
-    def delete_chat(self, organization_id, conversation_uuids):
-        endpoint = urllib.parse.urljoin(self.BASE_URL, f"/organizations/{organization_id}/chat_conversations/delete_many")
-        data = json.dumps({"conversation_uuids": conversation_uuids}).encode('utf-8')
-        request = urllib.request.Request(endpoint, data=data, headers={"Authorization": f"Bearer {self.session_key}", "Content-Type": "application/json"})
-        try:
-            response = urllib.request.urlopen(request)
-            if response.getcode() != 200:
-                raise ProviderError(f"HTTP error: {response.getcode()}")
         except urllib.error.HTTPError as e:
             raise ProviderError(f"HTTP error: {e.code}")
         except Exception as e:
