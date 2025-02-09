@@ -47,7 +47,7 @@ class SyncManager:
     def update_existing_file(self, local_file, local_checksum, remote_file, remote_files_to_delete, synced_files):
         remote_checksum = compute_md5_hash(remote_file['content'])
         if local_checksum != remote_checksum:
-            logger.debug(f"Updating {local_file} on remote...") # Changed to double quotes
+            logger.debug(f'Updating {local_file} on remote...')
             with tqdm(total=2, desc=f'Updating {local_file}', leave=False) as pbar:
                 self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
                 pbar.update(1)
@@ -57,10 +57,11 @@ class SyncManager:
                 pbar.update(1)
             time.sleep(self.upload_delay)
             synced_files.add(local_file)
-        remote_files_to_delete.remove(local_file) # Changed from discard to remove
+        if file_to_delete in remote_files_to_delete:
+            remote_files_to_delete.remove(file_to_delete)
 
     def upload_new_file(self, local_file, synced_files):
-        logger.debug(f"Uploading new file {local_file} to remote...") # Changed to double quotes
+        logger.debug(f'Uploading new file {local_file} to remote...')
         with open(os.path.join(self.local_path, local_file), 'r', encoding='utf-8') as file:
             content = file.read()
         with tqdm(total=1, desc=f'Uploading {local_file}', leave=False) as pbar:
@@ -77,7 +78,7 @@ class SyncManager:
                     if os.path.exists(local_file_path):
                         remote_timestamp = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00')).timestamp()
                         os.utime(local_file_path, (remote_timestamp, remote_timestamp))
-                        logger.debug(f'Updated timestamp on local file {local_file_path}') # Changed to double quotes
+                        logger.debug(f'Updated timestamp on local file {local_file_path}')
                     pbar.update(1)
 
     def sync_remote_to_local(self, remote_file, remote_files_to_delete, synced_files):
@@ -91,25 +92,27 @@ class SyncManager:
         local_mtime = datetime.fromtimestamp(os.path.getmtime(local_file_path), tz=timezone.utc)
         remote_mtime = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00'))
         if remote_mtime > local_mtime:
-            logger.debug(f"Updating local file {remote_file['file_name']} from remote...") # Changed to double quotes
+            logger.debug(f'Updating local file {remote_file['file_name']} from remote...')
             with tqdm(total=1, desc=f'Updating {remote_file['file_name']}', leave=False) as pbar:
                 with open(local_file_path, 'w', encoding='utf-8') as file:
                     file.write(remote_file['content'])
                 pbar.update(1)
             synced_files.add(remote_file['file_name'])
-            remote_files_to_delete.remove(remote_file['file_name']) # Changed from discard to remove
+        if remote_file['file_name'] in remote_files_to_delete:
+            remote_files_to_delete.remove(remote_file['file_name'])
 
     def create_new_local_file(self, local_file_path, remote_file, remote_files_to_delete, synced_files):
-        logger.debug(f"Creating new local file {remote_file['file_name']} from remote...") # Changed to double quotes
+        logger.debug(f'Creating new local file {remote_file['file_name']} from remote...')
         with tqdm(total=1, desc=f'Creating {remote_file['file_name']}', leave=False) as pbar:
             with open(local_file_path, 'w', encoding='utf-8') as file:
                 file.write(remote_file['content'])
             pbar.update(1)
         synced_files.add(remote_file['file_name'])
-        remote_files_to_delete.remove(remote_file['file_name']) # Changed from discard to remove
+        if remote_file['file_name'] in remote_files_to_delete:
+            remote_files_to_delete.remove(remote_file['file_name'])
 
     def delete_remote_files(self, file_to_delete, remote_files):
-        logger.debug(f"Deleting {file_to_delete} from remote...") # Changed to double quotes
+        logger.debug(f'Deleting {file_to_delete} from remote...')
         remote_file = next(rf for rf in remote_files if rf['file_name'] == file_to_delete)
         with tqdm(total=1, desc=f'Deleting {file_to_delete}', leave=False) as pbar:
             self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
