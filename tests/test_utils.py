@@ -32,9 +32,11 @@ class TestUtils(unittest.TestCase):
             os.mkdir(os.path.join(tmpdir, 'subdir'))
             with open(os.path.join(tmpdir, 'subdir/file3.txt'), 'w') as f:
                 f.write('Content of file3')
-            # Create a .gitignore file
+            # Create .gitignore and .claudeignore files
             with open(os.path.join(tmpdir, '.gitignore'), 'w') as f:
                 f.write('*.log\n/build\ntarget')
+            with open(os.path.join(tmpdir, '.claudeignore'), 'w') as f:
+                f.write('*.log\n/build/\')
 
             local_files = get_local_files(tmpdir)
             self.assertIn('file1.txt', local_files)
