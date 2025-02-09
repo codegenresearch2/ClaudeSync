@@ -1,7 +1,7 @@
-import re
 import json
 import logging
 import os
+import re
 
 from tqdm import tqdm
 
@@ -9,6 +9,10 @@ from .exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
+# Constants
+LOCAL_PATH_KEY = "local_path"
+ACTIVE_ORGANIZATION_ID_KEY = "active_organization_id"
+ACTIVE_PROJECT_ID_KEY = "active_project_id"
 
 def get_file_extension(artifact_type):
     type_to_extension = {
@@ -19,7 +23,6 @@ def get_file_extension(artifact_type):
         "application/vnd.ant.react": "jsx",
     }
     return type_to_extension.get(artifact_type, "txt")
-
 
 def extract_artifacts(text):
     artifacts = []
@@ -39,7 +42,6 @@ def extract_artifacts(text):
         )
     return artifacts
 
-
 def save_artifacts(chat_folder, artifacts):
     artifact_folder = os.path.join(chat_folder, "artifacts")
     os.makedirs(artifact_folder, exist_ok=True)
@@ -53,7 +55,6 @@ def save_artifacts(chat_folder, artifacts):
             logger.info(f"Saved artifact {artifact['identifier']} in chat folder {chat_folder}")
         else:
             logger.debug(f"Skipping existing artifact {artifact['identifier']} in chat folder {chat_folder}")
-
 
 def sync_chat(provider, config, chat_id, chat_destination):
     chat_folder = os.path.join(chat_destination, chat_id)
@@ -87,20 +88,19 @@ def sync_chat(provider, config, chat_id, chat_destination):
         artifacts = extract_artifacts(full_chat)
         save_artifacts(chat_folder, artifacts)
 
-
 def sync_chats(provider, config, sync_all=False):
-    local_path = config.get("local_path")
+    local_path = config.get(LOCAL_PATH_KEY)
     if not local_path:
-        raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
+        raise ConfigurationError(f"Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
     chat_destination = os.path.join(local_path, "claude_chats")
     os.makedirs(chat_destination, exist_ok=True)
 
-    organization_id = config.get("active_organization_id")
+    organization_id = config.get(ACTIVE_ORGANIZATION_ID_KEY)
     if not organization_id:
         raise ConfigurationError("No active organization set. Please select an organization.")
 
-    active_project_id = config.get("active_project_id")
+    active_project_id = config.get(ACTIVE_PROJECT_ID_KEY)
     if not active_project_id and not sync_all:
         raise ConfigurationError("No active project set. Please select a project or use the -a flag to sync all chats.")
 
