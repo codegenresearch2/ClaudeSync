@@ -52,7 +52,7 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            logging.debug(local_files)
+            print(local_files)  # Use print for debugging output
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
@@ -94,3 +94,6 @@ class TestUtils(unittest.TestCase):
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
+
+if __name__ == "__main__":
+    unittest.main()
