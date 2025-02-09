@@ -1,9 +1,9 @@
 import json
 import urllib.request
 import urllib.error
+import gzip
 from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
-import gzip
 
 class ClaudeAIProvider(BaseClaudeAIProvider):
     def _make_request(self, method, endpoint, data=None):
