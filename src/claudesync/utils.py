@@ -25,10 +25,9 @@ def handle_errors(func):
     return wrapper
 
 
-def normalize_and_calculate_md5(content):
-    """Normalizes the line endings of the input content to Unix-style (\n) and calculates the MD5 hash of the normalized content."
-    normalized_content = content.replace('\r\n', '\n').replace('\r', '\n').strip()
-    return hashlib.md5(normalized_content.encode('utf-8')).hexdigest()
+def compute_md5_hash(content):
+    """Computes the MD5 hash of the given content."
+    return hashlib.md5(content.encode('utf-8')).hexdigest()
 
 
 def load_gitignore(base_path):
@@ -64,7 +63,7 @@ def process_file(file_path):
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
-            return normalize_and_calculate_md5(content)
+            return compute_md5_hash(content)
     except UnicodeDecodeError:
         logger.debug(f'Unable to read {file_path} as UTF-8 text. Skipping.')
     except Exception as e:
