@@ -186,7 +186,7 @@ def get_local_files(local_path):
     gitignore = load_gitignore(local_path)
     claudeignore = load_claudeignore(local_path)
     files = {}
-    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}
+    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}
 
     for root, dirs, filenames in os.walk(local_path):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -197,9 +197,7 @@ def get_local_files(local_path):
             rel_path = os.path.join(rel_root, filename)
             full_path = os.path.join(root, filename)
 
-            if should_process_file(
-                full_path, filename, gitignore, local_path, claudeignore
-            ):
+            if should_process_file(full_path, filename, gitignore, local_path, claudeignore):
                 file_hash = process_file(full_path)
                 if file_hash:
                     files[rel_path] = file_hash
@@ -274,15 +272,13 @@ def validate_and_store_local_path(config):
     Prompts the user for the absolute path to their local project directory and stores it in the configuration.
 
     This function repeatedly prompts the user to enter the absolute path to their local project directory until
-    a valid absolute path is provided. The path is validated to ensure it exists, is a directory, and is an absolute path.
-    Once a valid path is provided, it is stored in the configuration using the `set` method of the `ConfigManager` object.
+    a valid absolute path is provided. The path is validated to ensure it exists, is a directory, and is an absolute path. Once a valid path is provided, it is stored in the configuration using the `set` method of the `ConfigManager` object.
 
     Args:
         config (ConfigManager): The configuration manager instance to store the local path setting.
 
     Note:
-        This function uses `click.prompt` to interact with the user, providing a default path (the current working directory)
-        and validating the user's input to ensure it meets the criteria for an absolute path to a directory.
+        This function uses `click.prompt` to interact with the user, providing a default path (the current working directory) and validating the user's input to ensure it meets the criteria for an absolute path to a directory.
     """
 
     def get_default_path():
