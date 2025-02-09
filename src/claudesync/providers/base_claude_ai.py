@@ -75,10 +75,12 @@ class BaseClaudeAIProvider(BaseProvider):
             try:
                 organizations = self.get_organizations()
                 if organizations:
-                    return self.session_key, self.session_key_expiry
+                    break  # Exit the loop if organizations are successfully retrieved
             except ProviderError as e:
                 click.echo(e)
                 click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
+
+        return self.session_key, self.session_key_expiry
 
     def get_organizations(self):
         url = urllib.parse.urljoin(self.BASE_URL, "/organizations")
