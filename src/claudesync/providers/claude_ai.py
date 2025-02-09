@@ -21,9 +21,15 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
         try:
             with urllib.request.urlopen(request) as response:
+                content_encoding = response.info().get("Content-Encoding", "")
                 response_body = response.read()
-                if response.info().get("Content-Encoding") == "gzip":
-                    response_body = gzip.decompress(response_body)
+
+                if content_encoding == "gzip":
+                    try:
+                        response_body = gzip.decompress(response_body)
+                    except gzip.BadGzipFile:
+                        self.logger.error("Failed to decompress the response body.")
+                        raise ProviderError("Failed to decompress the response body.")
 
                 response_body = response_body.decode("utf-8")
 
