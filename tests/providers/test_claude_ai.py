@@ -1,9 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import urllib.request
+import gzip
+import json
+from io import BytesIO
 from claudesync.providers.claude_ai import ClaudeAIProvider
 from claudesync.exceptions import ProviderError
-import gzip
 
 class TestClaudeAIProvider(unittest.TestCase):
 
@@ -18,7 +20,8 @@ class TestClaudeAIProvider(unittest.TestCase):
     def test_make_request_success(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
         mock_response.status = 200
-        mock_response.read.return_value = gzip.compress(b'{"key": "value"}')
+        mock_response.getheader.return_value = "gzip"
+        mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
@@ -36,15 +39,12 @@ class TestClaudeAIProvider(unittest.TestCase):
         with self.assertRaises(ProviderError):
             self.provider._make_request("GET", "/test")
 
-    @patch("claudesync.config_manager.ConfigManager.get_session_key")
     @patch("urllib.request.urlopen")
-    def test_make_request_403_error(self, mock_urlopen, mock_get_session_key):
+    def test_make_request_403_error(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.status = 403
         mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
-
-        mock_get_session_key.return_value = "sk-ant-1234"
 
         with self.assertRaises(ProviderError) as context:
             self.provider._make_request("GET", "/test")
