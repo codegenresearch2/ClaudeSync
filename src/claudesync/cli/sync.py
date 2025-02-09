@@ -23,12 +23,10 @@ def ls(config):
         click.echo("No files found in the active project.")
     else:
         click.echo(
-            f"Files in project '{config.get('active_project_name')}' (ID: {active_project_id}):"
-        )
+            f"Files in project '{config.get('active_project_name')}' (ID: {active_project_id}):")
         for file in files:
             click.echo(
-                f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})"
-            )
+                f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})")
 
 
 @click.command()
@@ -41,7 +39,8 @@ def sync(config):
     # Sync projects
     sync_manager = SyncManager(provider, config)
     remote_files = provider.list_files(
-        sync_manager.active_organization_id, sync_manager.active_project_id
+        sync_manager.active_organization_id,
+        sync_manager.active_project_id,
     )
     local_files = get_local_files(config.get("local_path"))
     sync_manager.sync(local_files, remote_files)
@@ -55,8 +54,7 @@ def sync(config):
 def validate_local_path(local_path):
     if not local_path:
         click.echo(
-            "No local path set. Please select or create a project to set the local path."
-        )
+            "No local path set. Please select or create a project to set the local path.")
         sys.exit(1)
     if not os.path.exists(local_path):
         click.echo(f"The configured local path does not exist: {local_path}")
@@ -75,8 +73,7 @@ def schedule(config, interval):
     claudesync_path = shutil.which("claudesync")
     if not claudesync_path:
         click.echo(
-            "Error: claudesync not found in PATH. Please ensure it's installed correctly."
-        )
+            "Error: claudesync not found in PATH. Please ensure it's installed correctly.")
         sys.exit(1)
 
     if sys.platform.startswith("win"):
