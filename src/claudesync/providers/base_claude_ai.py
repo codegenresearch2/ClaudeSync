@@ -4,7 +4,7 @@ import urllib.request
 import urllib.parse
 import gzip
 import io
-
+import json
 import click
 from .base_provider import BaseProvider
 from ..config_manager import ConfigManager
@@ -19,14 +19,12 @@ def is_url_encoded(s):
 def _get_session_key_expiry():
     while True:
         date_format = "%a, %d %b %Y %H:%M:%S %Z"
-        default_expires = datetime.datetime.now(
-            datetime.timezone.utc
-        ) + datetime.timedelta(days=30)
+        default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
         expires = click.prompt(
             "Please enter the expires time for the sessionKey (optional)",
             default=formatted_expires,
-            type=str,
+            type=str
         ).strip()
         try:
             expires_on = datetime.datetime.strptime(expires, date_format)
@@ -63,16 +61,15 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
         self.session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
+        if not self.session_key.startswith("sk-ant"):
+            raise ProviderError("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+        if is_url_encoded(self.session_key):
+            raise ProviderError("The session key appears to be URL-encoded. Please provide the decoded version.")
+
         expires = _get_session_key_expiry()
         self.session_key_expiry = expires
 
-        try:
-            organizations = self.get_organizations()
-            if organizations:
-                return self.session_key, self.session_key_expiry
-        except ProviderError as e:
-            click.echo(e)
-            click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
+        return self.session_key, self.session_key_expiry
 
     def get_organizations(self):
         url = urllib.parse.urljoin(self.BASE_URL, "/organizations")
