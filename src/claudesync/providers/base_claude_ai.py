@@ -7,11 +7,9 @@ from ..config_manager import ConfigManager
 from ..exceptions import ProviderError
 import click
 
-
 def is_url_encoded(s):
     decoded_s = urllib.parse.unquote(s)
     return decoded_s != s
-
 
 def _get_session_key_expiry():
     while True:
@@ -28,7 +26,6 @@ def _get_session_key_expiry():
             return expires_on
         except ValueError:
             print("The entered date does not match the required format. Please try again.")
-
 
 class BaseProvider(ABC):
     @abstractmethod
@@ -95,7 +92,6 @@ class BaseProvider(ABC):
     def delete_chat(self, organization_id, conversation_uuids):
         """Delete specified chats for a given organization."""
         pass
-
 
 class BaseClaudeAIProvider(BaseProvider):
     BASE_URL = "https://api.claude.ai/api"
@@ -228,6 +224,8 @@ class BaseClaudeAIProvider(BaseProvider):
         return self._make_request("POST", endpoint, data)
 
     def _make_request(self, method, endpoint, data=None):
+        if not hasattr(requests, 'request'):
+            raise ModuleNotFoundError("The 'requests' module is not available. Please install it to use this functionality.")
         url = urllib.parse.urljoin(self.BASE_URL, endpoint)
         headers = {
             "Authorization": f"Bearer {self.session_key}",
