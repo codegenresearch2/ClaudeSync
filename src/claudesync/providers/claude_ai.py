@@ -14,7 +14,6 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
-            "Accept-Encoding": "gzip",
         }
 
         cookies = {
@@ -74,6 +73,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Response headers: {e.headers}")
         try:
             content = e.read().decode("utf-8")
+            if "ISO-8859-1" in content:
+                content = content.decode("ISO-8859-1")
             self.logger.debug(f"Response content: {content}")
         except UnicodeDecodeError:
             self.logger.error(f"Failed to decode response content: {str(e)}")
@@ -90,7 +91,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             raise ProviderError(error_msg)
         if e.code == 429:
             try:
-                error_data = json.loads(e.read().decode("utf-8"))
+                error_data = json.loads(content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
