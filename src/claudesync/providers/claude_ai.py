@@ -11,6 +11,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+            "Accept-Encoding": "gzip",
         }
 
         if data:
@@ -52,20 +53,23 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                     raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
 
         except urllib.error.HTTPError as e:
-            if e.status == 403:
-                error_msg = (
-                    "Received a 403 Forbidden error. Your session key might be invalid. "
-                    "Please try logging out and logging in again. If the issue persists, "
-                    "you can try using the claude.ai-curl provider as a workaround:\n"
-                    "claudesync api logout\n"
-                    "claudesync api login claude.ai-curl"
-                )
-                self.logger.error(error_msg)
-                raise ProviderError(error_msg)
-            else:
-                self.logger.error(f"HTTP error occurred: {e.status}")
-                raise ProviderError(f"HTTP error: {e.status}")
+            self._handle_http_error(e)
 
         except urllib.error.URLError as e:
             self.logger.error(f"URL error occurred: {e.reason}")
             raise ProviderError(f"URL error: {e.reason}")
+
+    def _handle_http_error(self, error):
+        if error.status == 403:
+            error_msg = (
+                "Received a 403 Forbidden error. Your session key might be invalid. "
+                "Please try logging out and logging in again. If the issue persists, "
+                "you can try using the claude.ai-curl provider as a workaround:\n"
+                "claudesync api logout\n"
+                "claudesync api login claude.ai-curl"
+            )
+            self.logger.error(error_msg)
+            raise ProviderError(error_msg)
+        else:
+            self.logger.error(f"HTTP error occurred: {error.status}")
+            raise ProviderError(f"HTTP error: {error.status}")
