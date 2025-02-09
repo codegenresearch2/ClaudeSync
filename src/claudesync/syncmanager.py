@@ -32,6 +32,9 @@ class SyncManager:
         """
         Synchronizes files between the local directory and the remote storage.
 
+        This method manages the synchronization from local to remote, updates local timestamps, performs two-way sync if enabled,
+        and deletes remote files that are no longer present locally.
+
         Args:
             local_files (dict): Dictionary of local file names and their corresponding checksums.
             remote_files (list): List of dictionaries representing remote files.
@@ -39,6 +42,7 @@ class SyncManager:
         remote_files_to_delete = {rf["file_name"] for rf in remote_files}
         synced_files = set()
 
+        # Sync from local to remote
         with tqdm(total=len(local_files), desc="Local → Remote") as pbar:
             for local_file, local_checksum in local_files.items():
                 remote_file = next(
@@ -56,8 +60,10 @@ class SyncManager:
                     self.upload_new_file(local_file, synced_files)
                 pbar.update(1)
 
+        # Update local timestamps
         self.update_local_timestamps(remote_files, synced_files)
 
+        # Sync from remote to local if two-way sync is enabled
         if self.two_way_sync:
             with tqdm(total=len(remote_files), desc="Remote → Local") as pbar:
                 for remote_file in remote_files:
@@ -66,9 +72,8 @@ class SyncManager:
                     )
                     pbar.update(1)
 
-        with tqdm(
-            total=len(remote_files_to_delete), desc="Deleting remote files"
-        ) as pbar:
+        # Delete remote files that are no longer present locally
+        with tqdm(total=len(remote_files_to_delete), desc="Deleting remote files") as pbar:
             for file_to_delete in list(remote_files_to_delete):
                 self.delete_remote_files(file_to_delete, remote_files)
                 pbar.update(1)
@@ -95,7 +100,7 @@ class SyncManager:
         """
         remote_checksum = compute_md5_hash(remote_file["content"])
         if local_checksum != remote_checksum:
-            logger.debug(f"Updating {local_file} on remote...")
+            logger.info(f"Updating {local_file} on remote...")
             with tqdm(total=2, desc=f"Updating {local_file}", leave=False) as pbar:
                 self.provider.delete_file(
                     self.active_organization_id,
@@ -126,7 +131,7 @@ class SyncManager:
             local_file (str): Name of the local file to be uploaded.
             synced_files (set): Set of file names that have been synchronized.
         """
-        logger.debug(f"Uploading new file {local_file} to remote...")
+        logger.info(f"Uploading new file {local_file} to remote...")
         with open(
             os.path.join(self.local_path, local_file), "r", encoding="utf-8"
         ) as file:
@@ -158,7 +163,7 @@ class SyncManager:
                             remote_file["created_at"].replace("Z", "+00:00")
                         ).timestamp()
                         os.utime(local_file_path, (remote_timestamp, remote_timestamp))
-                        logger.debug(
+                        logger.info(
                             f"Updated timestamp on local file {local_file_path}"
                         )
                     pbar.update(1)
@@ -201,7 +206,7 @@ class SyncManager:
             remote_file["created_at"].replace("Z", "+00:00")
         )
         if remote_mtime > local_mtime:
-            logger.debug(
+            logger.info(
                 f"Updating local file {remote_file['file_name']} from remote..."
             )
             with tqdm(
@@ -226,7 +231,7 @@ class SyncManager:
             remote_files_to_delete (set): Set of remote file names to be deleted.
             synced_files (set): Set of file names that have been synchronized.
         """
-        logger.debug(
+        logger.info(
             f"Creating new local file {remote_file['file_name']} from remote..."
         )
         with tqdm(
@@ -247,7 +252,7 @@ class SyncManager:
             file_to_delete (str): Name of the remote file to be deleted.
             remote_files (list): List of dictionaries representing remote files.
         """
-        logger.debug(f"Deleting {file_to_delete} from remote...")
+        logger.info(f"Deleting {file_to_delete} from remote...")
         remote_file = next(
             rf for rf in remote_files if rf["file_name"] == file_to_delete
         )
