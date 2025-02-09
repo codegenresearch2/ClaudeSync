@@ -80,7 +80,7 @@ class SyncManager:
 
         with tqdm(total=len(remote_files_to_delete), desc="Deleting remote files") as pbar:
             for file_to_delete in list(remote_files_to_delete):
-                self.delete_remote_files(file_to_delete)
+                self.delete_remote_files(file_to_delete, remote_files)
                 pbar.update(1)
 
     def update_existing_file(
@@ -253,7 +253,7 @@ class SyncManager:
             pbar.update(1)
         synced_files.add(remote_file["file_name"])
 
-    def delete_remote_files(self, file_to_delete):
+    def delete_remote_files(self, file_to_delete, remote_files):
         """
         Delete a file from the remote project that no longer exists locally.
 
@@ -261,6 +261,7 @@ class SyncManager:
 
         Args:
             file_to_delete (str): Name of the remote file to be deleted.
+            remote_files (list): List of dictionaries representing remote files.
         """
         logger.debug(f"Deleting {file_to_delete} from remote...")
         remote_file = next(
