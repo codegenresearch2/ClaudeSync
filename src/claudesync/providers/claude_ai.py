@@ -1,4 +1,5 @@
 import json
+import gzip
 import urllib.request
 import urllib.error
 from .base_claude_ai import BaseClaudeAIProvider
@@ -10,40 +11,18 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-            "Origin": "https://claude.ai",
-            "Referer": "https://claude.ai/projects",
-            "Accept": "*/*",
-            "Accept-Encoding": "gzip, deflate, zstd",
-            "Accept-Language": "en-US,en;q=0.5",
-            "anthropic-client-sha": "unknown",
-            "anthropic-client-version": "unknown",
-            "Connection": "keep-alive",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
         }
 
         if data:
             headers["Content-Type"] = "application/json"
+            data = json.dumps(data).encode("utf-8")
 
-        cookies = {
-            "sessionKey": self.session_key,
-            "CH-prefers-color-scheme": "dark",
-            "anthropic-consent-preferences": '{"analytics":true,"marketing":true}',
-        }
-
-        cookie_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
-        headers["Cookie"] = cookie_header
-
-        request = urllib.request.Request(url, method=method.upper())
-        for key, value in headers.items():
-            request.add_header(key, value)
+        request = urllib.request.Request(url, method=method.upper(), headers=headers)
 
         try:
             with urllib.request.urlopen(request) as response:
                 response_body = response.read()
                 if response.info().get("Content-Encoding") == "gzip":
-                    import gzip
                     response_body = gzip.decompress(response_body)
                 response_body = response_body.decode("utf-8")
 
