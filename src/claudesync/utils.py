@@ -11,6 +11,7 @@ import click
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
 
+
 def handle_errors(func):
     """Decorator to handle errors in functions."""
     @wraps(func)
@@ -23,10 +24,11 @@ def handle_errors(func):
             raise
     return wrapper
 
-def normalize_and_calculate_md5(content):
-    """Normalizes the line endings of the input content to Unix-style (\n) and calculates the MD5 checksum of the normalized content."
-    normalized_content = content.replace('\r\n', '\n').replace('\r', '\n').strip()
-    return hashlib.md5(normalized_content.encode('utf-8')).hexdigest()
+
+def compute_md5_hash(content):
+    """Computes the MD5 hash of the given content."
+    return hashlib.md5(content.encode('utf-8')).hexdigest()
+
 
 def load_gitignore(base_path):
     """Loads and parses the .gitignore file from the specified base path."
@@ -36,6 +38,7 @@ def load_gitignore(base_path):
             return pathspec.PathSpec.from_lines('gitwildmatch', f)
     return None
 
+
 def is_text_file(file_path, sample_size=8192):
     """Determines if a file is a text file by checking for the absence of null bytes."
     try:
@@ -44,18 +47,20 @@ def is_text_file(file_path, sample_size=8192):
     except IOError:
         return False
 
+
 @handle_errors
 def process_file(file_path):
     """Reads the content of a file and computes its MD5 hash."
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             content = file.read()
-            return normalize_and_calculate_md5(content)
+            return compute_md5_hash(content)
     except UnicodeDecodeError:
         logger.debug(f'Unable to read {file_path} as UTF-8 text. Skipping.')
     except Exception as e:
         logger.error(f'Error reading file {file_path}: {str(e)}')
     return None
+
 
 @handle_errors
 def get_local_files(local_path):
@@ -76,6 +81,7 @@ def get_local_files(local_path):
                 if file_hash:
                     files[rel_path] = file_hash
     return files
+
 
 
 def load_claudeignore(base_path):
