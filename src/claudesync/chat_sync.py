@@ -4,22 +4,21 @@ import os
 import re
 from tqdm import tqdm
 from .exceptions import ConfigurationError
+
 logger = logging.getLogger(__name__)
 
+def save_artifacts(chat_folder, artifacts):
+    artifact_folder = os.path.join(chat_folder, 'artifacts')
+    os.makedirs(artifact_folder, exist_ok=True)
+    for artifact in artifacts:
+        artifact_file = os.path.join(
+            artifact_folder,
+            f'{artifact['identifier']}.{get_file_extension(artifact['type'])}'
+        )
+        with open(artifact_file, 'w') as f:
+            f.write(artifact['content'])
+
 def sync_chats(provider, config, sync_all=False):
-    """Synchronize chats and their artifacts from the remote source.
-
-    This function fetches all chats for the active organization, saves their metadata,
-messages, and extracts any artifacts found in the assistant's messages.
-
-    Args:
-        provider: The API provider instance.
-        config: The configuration manager instance.
-        sync_all (bool): If True, sync all chats regardless of project. If False, only sync chats for the active project.
-
-    Raises:
-        ConfigurationError: If required configuration settings are missing.
-    """
     local_path = config.get('local_path')
     if not local_path:
         raise ConfigurationError(
@@ -57,44 +56,5 @@ messages, and extracts any artifacts found in the assistant's messages.
                     artifacts = extract_artifacts(message['text'])
                     if artifacts:
                         logger.info(f'Found {len(artifacts)} artifacts in message {message['uuid']}')
-                        artifact_folder = os.path.join(chat_folder, 'artifacts')
-                        os.makedirs(artifact_folder, exist_ok=True)
-                        for artifact in artifacts:
-                            artifact_file = os.path.join(artifact_folder, f'{artifact['identifier']}.{get_file_extension(artifact['type'])}')
-                            with open(artifact_file, 'w') as f:
-                                f.write(artifact['content'])
-            logger.debug(f'Chats and artifacts synchronized to {chat_destination}')
-
-def get_file_extension(artifact_type):
-    """Get the appropriate file extension for a given artifact type.
-
-    Args:
-        artifact_type (str): The MIME type of the artifact.
-
-    Returns:
-        str: The corresponding file extension.
-    """
-    type_to_extension = {
-        'text/html': 'html',
-        'application/vnd.ant.code': 'txt',
-        'image/svg+xml': 'svg',
-        'application/vnd.ant.mermaid': 'mmd',
-        'application/vnd.ant.react': 'jsx',
-    }
-    return type_to_extension.get(artifact_type, 'txt')
-
-def extract_artifacts(text):
-    """Extract artifacts from the given text.
-
-    This function searches for antArtifact tags in the text and extracts
-    the artifact information, including identifier, type, and content.
-
-    Args:
-        text (str): The text to search for artifacts.
-
-    Returns:
-        list: A list of dictionaries containing artifact information.
-    """
-    artifacts = []
-    pattern = re.compile(
-        r'<antArtifact\s+identifier=
+                        save_artifacts(chat_folder, artifacts)
+    logger.debug(f'Chats and artifacts synchronized to {chat_destination}')
