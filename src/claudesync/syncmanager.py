@@ -68,6 +68,7 @@ class SyncManager:
                     self.upload_new_file(local_file, synced_files)
                 pbar.update(1)
 
+        # Update local timestamps after local to remote sync
         self.update_local_timestamps(remote_files, synced_files)
 
         if self.two_way_sync:
@@ -78,6 +79,7 @@ class SyncManager:
                     )
                     pbar.update(1)
 
+        # Delete remote files that are no longer present locally after all sync operations
         with tqdm(total=len(remote_files_to_delete), desc="Deleting remote files") as pbar:
             for file_to_delete in list(remote_files_to_delete):
                 self.delete_remote_files(file_to_delete, remote_files)
