@@ -9,11 +9,11 @@ logger = logging.getLogger(__name__)
 
 def save_artifacts(chat_folder, artifacts):
     artifact_folder = os.path.join(chat_folder, 'artifacts')
-    os.makedirs(artifact_folder, exist_ok=True)
+os.makedirs(artifact_folder, exist_ok=True)
     for artifact in artifacts:
         artifact_file = os.path.join(
             artifact_folder,
-            f'{artifact['identifier']}.{get_file_extension(artifact['type'])}'
+            f"{artifact['identifier']}.{get_file_extension(artifact['type'])}"
         )
         if not os.path.exists(artifact_file):
             with open(artifact_file, 'w') as f:
