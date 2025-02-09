@@ -17,7 +17,11 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         }
 
         # Add cookies to headers
-        headers["Cookie"] = f"sessionKey={self.session_key}"
+        cookies = {
+            "sessionKey": self.session_key,
+        }
+        cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+        headers["Cookie"] = cookie_string
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
