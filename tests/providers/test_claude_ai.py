@@ -1,10 +1,9 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import requests
+import urllib.request
 from claudesync.providers.claude_ai import ClaudeAIProvider
 from claudesync.exceptions import ProviderError
 import gzip
-import io
 
 class TestClaudeAIProvider(unittest.TestCase):
 
@@ -15,12 +14,12 @@ class TestClaudeAIProvider(unittest.TestCase):
         self.mock_config = MagicMock()
 
     @patch("claudesync.config_manager.ConfigManager.get_session_key")
-    @patch("claudesync.providers.claude_ai.urllib.request.Request")
-    @patch("claudesync.providers.claude_ai.urllib.request.urlopen")
-    def test_make_request_success(self, mock_urlopen, mock_request, mock_get_session_key):
+    @patch("urllib.request.urlopen")
+    def test_make_request_success(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.read.return_value = gzip.compress(b'{"key": "value"}')
+        mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
@@ -30,20 +29,19 @@ class TestClaudeAIProvider(unittest.TestCase):
         self.assertEqual(result, {"key": "value"})
         mock_urlopen.assert_called_once()
 
-    @patch("claudesync.providers.claude_ai.urllib.request.Request")
-    @patch("claudesync.providers.claude_ai.urllib.request.urlopen")
-    def test_make_request_failure(self, mock_urlopen, mock_request):
-        mock_urlopen.side_effect = requests.RequestException("Test error")
+    @patch("urllib.request.urlopen")
+    def test_make_request_failure(self, mock_urlopen):
+        mock_urlopen.side_effect = urllib.error.URLError("Test error")
 
         with self.assertRaises(ProviderError):
             self.provider._make_request("GET", "/test")
 
     @patch("claudesync.config_manager.ConfigManager.get_session_key")
-    @patch("claudesync.providers.claude_ai.urllib.request.Request")
-    @patch("claudesync.providers.claude_ai.urllib.request.urlopen")
-    def test_make_request_403_error(self, mock_urlopen, mock_request, mock_get_session_key):
+    @patch("urllib.request.urlopen")
+    def test_make_request_403_error(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
         mock_response.status = 403
+        mock_response.__enter__.return_value = mock_response
         mock_urlopen.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
@@ -52,3 +50,6 @@ class TestClaudeAIProvider(unittest.TestCase):
             self.provider._make_request("GET", "/test")
 
         self.assertIn("403 Forbidden error", str(context.exception))
+
+if __name__ == "__main__":
+    unittest.main()
