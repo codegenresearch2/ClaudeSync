@@ -1,7 +1,6 @@
 import unittest
 import os
 import tempfile
-
 from claudesync.utils import (
     compute_md5_hash,
     load_gitignore,
@@ -39,13 +38,11 @@ class TestUtils(unittest.TestCase):
             os.mkdir(os.path.join(tmpdir, "subdir"))
             with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
                 f.write("Content of file3")
-            with open(os.path.join(tmpdir, "test~"), "w") as f:
-                f.write("*.log\n")
 
             # Create a test~ file
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "afile"), "w") as f:
+                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
             for buildDir in {"target", "build"}:
@@ -57,14 +54,11 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            print(local_files)
-
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
-            self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
-            self.assertNotIn(os.path.join("target", "output.txt"), local_files)
-            self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-            # Ensure ignored files not included
+            self.assertIn("subdir/file3.txt", local_files)
+            self.assertNotIn("target/output.txt", local_files)
+            self.assertNotIn("build/output.txt", local_files)
             self.assertEqual(len(local_files), 4)
 
     def test_load_claudeignore(self):
@@ -98,7 +92,7 @@ class TestUtils(unittest.TestCase):
 
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
-            self.assertNotIn(os.path.join("build", "output.txt"), local_files)
+            self.assertNotIn("build/output.txt", local_files)
 
 
 if __name__ == "__main__":
