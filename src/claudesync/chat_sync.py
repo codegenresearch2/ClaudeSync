@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 
 from tqdm import tqdm
 
@@ -29,14 +30,20 @@ def get_file_extension(artifact_type):
     return type_to_extension.get(artifact_type, "txt")
 
 
-def save_artifacts(chat_folder, artifacts):
+def save_artifacts(chat_folder, artifacts, message):
     """Save artifacts to the specified chat folder."""
     artifact_folder = os.path.join(chat_folder, "artifacts")
     os.makedirs(artifact_folder, exist_ok=True)
     for artifact in artifacts:
-        artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
-        with open(artifact_file, "w") as f:
-            f.write(artifact["content"])
+        artifact_file = os.path.join(
+            artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}"
+        )
+        if not os.path.exists(artifact_file):
+            with open(artifact_file, "w") as f:
+                f.write(artifact["content"])
+            logger.info(f"Saved artifact {artifact['identifier']} in message {message['uuid']}")
+        else:
+            logger.debug(f"Skipping existing artifact {artifact['identifier']} in message {message['uuid']}")
 
 
 def sync_chat(provider, config, chat, chat_destination):
@@ -58,13 +65,16 @@ def sync_chat(provider, config, chat, chat_destination):
         if not os.path.exists(message_file):
             with open(message_file, "w") as f:
                 json.dump(message, f, indent=2)
+            logger.info(f"Saved message {message['uuid']} from chat {chat['uuid']}")
+        else:
+            logger.debug(f"Skipping existing message {message['uuid']} from chat {chat['uuid']}")
 
         # Handle artifacts in assistant messages
         if message["sender"] == "assistant":
             artifacts = extract_artifacts(message["text"])
             if artifacts:
                 logger.info(f"Found {len(artifacts)} artifacts in chat {chat['uuid']}")
-                save_artifacts(chat_folder, artifacts)
+                save_artifacts(chat_folder, artifacts, message)
 
 
 def extract_artifacts(text):
@@ -119,7 +129,7 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
-    chat_destination = os.path.join(local_path, "claude_chats")
+    chat_destination = os.path.join(local_path, "chats")
     os.makedirs(chat_destination, exist_ok=True)
 
     organization_id = config.get("active_organization_id")
