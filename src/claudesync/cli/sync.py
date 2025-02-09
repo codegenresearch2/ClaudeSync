@@ -89,9 +89,8 @@ def schedule(config, interval):
 def setup_windows_task(claudesync_path, interval):
     click.echo('Windows Task Scheduler setup:')
     command = f'schtasks /create /tn "ClaudeSync" /tr "{claudesync_path} sync" /sc minute /mo {interval}'
-    click.echo(f"Run this command to create the task:
-{command}")
-    click.echo('\nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
+    click.echo(f"Run this command to create the task:n{command}")
+    click.echo('nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
 
 
 def setup_unix_cron(claudesync_path, interval):
@@ -101,5 +100,5 @@ def setup_unix_cron(claudesync_path, interval):
     cron.write()
     click.echo(f"Cron job created successfully! It will run every {interval} minutes.")
     click.echo(
-        "\nTo remove the cron job, run: crontab -e and remove the line for ClaudeSync"
+        "nTo remove the cron job, run: crontab -e and remove the line for ClaudeSync"
     )
