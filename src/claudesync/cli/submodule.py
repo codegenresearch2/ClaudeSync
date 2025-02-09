@@ -80,7 +80,7 @@ def create(config):
         )
 
         if existing_project:
-            click.echo(f"{i}. Project for submodule '{submodule_name}' already exists. Skipping creation.")
+            click.echo(f"{i}. Project for submodule '{submodule_name}' already exists. Project ID: {existing_project['id']}. Skipping creation.")
         else:
             try:
                 new_project = provider.create_project(
