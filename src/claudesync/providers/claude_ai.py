@@ -4,7 +4,6 @@ import urllib.error
 from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
 import gzip
-import io
 
 class ClaudeAIProvider(BaseClaudeAIProvider):
     def _make_request(self, method, endpoint, data=None):
