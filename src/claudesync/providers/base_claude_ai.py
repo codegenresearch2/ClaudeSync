@@ -231,10 +231,10 @@ class BaseClaudeAIProvider(BaseProvider):
             "Authorization": f"Bearer {self.session_key}",
             "Accept-Encoding": "gzip"
         }
-        response = requests.request(method, url, headers=headers, data=data)
-        if response.status_code >= 400:
-            raise ProviderError(f"HTTP error: {response.status_code} - {response.text}")
         try:
+            response = requests.request(method, url, headers=headers, data=data)
+            if response.status_code >= 400:
+                raise ProviderError(f"HTTP error: {response.status_code} - {response.text}")
             return response.json()
-        except ValueError:
-            raise ProviderError("Invalid JSON response")
+        except requests.RequestException as e:
+            raise ProviderError(f"Request failed: {e}")
