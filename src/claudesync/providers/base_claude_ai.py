@@ -60,16 +60,25 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'")
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
-        self.session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
-        if not self.session_key.startswith("sk-ant"):
-            raise ProviderError("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
-        if is_url_encoded(self.session_key):
-            raise ProviderError("The session key appears to be URL-encoded. Please provide the decoded version.")
+        while True:
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
+            if not session_key.startswith("sk-ant"):
+                click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+                continue
+            if is_url_encoded(session_key):
+                click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
+                continue
 
-        expires = _get_session_key_expiry()
-        self.session_key_expiry = expires
-
-        return self.session_key, self.session_key_expiry
+            expires = _get_session_key_expiry()
+            self.session_key = session_key
+            self.session_key_expiry = expires
+            try:
+                organizations = self.get_organizations()
+                if organizations:
+                    return self.session_key, self.session_key_expiry
+            except ProviderError as e:
+                click.echo(e)
+                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
     def get_organizations(self):
         url = urllib.parse.urljoin(self.BASE_URL, "/organizations")
@@ -81,12 +90,7 @@ class BaseClaudeAIProvider(BaseProvider):
             data = response.read()
             with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
                 organizations = json.loads(decompressed.read().decode('utf-8'))
-            return [
-                {"id": org['uuid'], "name": org['name']}
-                for org in organizations
-                if (set(org.get('capabilities', [])) & {'chat', 'claude_pro'} or
-                    set(org.get('capabilities', [])) & {'chat', 'raven'})
-            ]
+            return [{"id": org['uuid'], "name": org['name']} for org in organizations if (set(org.get('capabilities', [])) & {'chat', 'claude_pro'} or set(org.get('capabilities', [])) & {'chat', 'raven'})]
         except urllib.error.HTTPError as e:
             raise ProviderError(f"HTTP error: {e.code}")
         except Exception as e:
@@ -102,15 +106,7 @@ class BaseClaudeAIProvider(BaseProvider):
             data = response.read()
             with gzip.GzipFile(fileobj=io.BytesIO(data)) as decompressed:
                 projects = json.loads(decompressed.read().decode('utf-8'))
-            return [
-                {
-                    "id": project['uuid'],
-                    "name": project['name'],
-                    "archived_at": project.get('archived_at')
-                }
-                for project in projects
-                if include_archived or project.get('archived_at') is None
-            ]
+            return [{"id": project['uuid'], "name": project['name'], "archived_at": project.get('archived_at')} for project in projects if include_archived or project.get('archived_at') is None]
         except urllib.error.HTTPError as e:
             raise ProviderError(f"HTTP error: {e.code}")
         except Exception as e:
