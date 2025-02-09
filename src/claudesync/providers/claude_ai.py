@@ -32,7 +32,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                         self.logger.error("Failed to decompress the response body.")
                         raise ProviderError("Failed to decompress the response body.")
 
-                response_body = response_body.decode("utf-8")
+                response_body_str = response_body.decode("utf-8")
 
                 if response.status == 403:
                     error_msg = (
@@ -46,20 +46,20 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                     raise ProviderError(error_msg)
 
                 try:
-                    return json.loads(response_body)
+                    return json.loads(response_body_str)
                 except json.JSONDecodeError as json_err:
                     self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
-                    self.logger.error(f"Response content: {response_body}")
+                    self.logger.error(f"Response content: {response_body_str}")
                     raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
 
         except urllib.error.HTTPError as e:
-            self._handle_http_error(e)
+            self.handle_http_error(e)
 
         except urllib.error.URLError as e:
             self.logger.error(f"URL error occurred: {e.reason}")
             raise ProviderError(f"URL error: {e.reason}")
 
-    def _handle_http_error(self, error):
+    def handle_http_error(self, error):
         if error.status == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
