@@ -27,11 +27,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         self.assertEqual(self.provider.session_key, "sk-ant-test123")
         expected_calls = [
             call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
-            call(
-                "Please enter the expires time for the sessionKey (format: 'Day, DD Mon YYYY HH:MM:SS GMT'):",
-                default="Tue, 03 Sep 2099 05:49:08 GMT",
-                type=str,
-            ),
+            call("Please enter the expires time for the sessionKey (format: 'Day, DD Mon YYYY HH:MM:SS GMT'):", default="Tue, 03 Sep 2099 05:49:08 GMT", type=str)
         ]
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
         mock_echo.assert_called()
@@ -56,11 +52,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
             call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
             call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
             call("Please enter your sessionKey (valid format: sk-ant-...):", type=str, hide_input=True),
-            call(
-                "Please enter the expires time for the sessionKey (format: 'Day, DD Mon YYYY HH:MM:SS GMT'):",
-                default="Tue, 03 Sep 2099 05:49:08 GMT",
-                type=str,
-            ),
+            call("Please enter the expires time for the sessionKey (format: 'Day, DD Mon YYYY HH:MM:SS GMT'):", default="Tue, 03 Sep 2099 05:49:08 GMT", type=str)
         ]
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
         mock_echo.assert_called()
