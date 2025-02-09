@@ -4,7 +4,9 @@ import logging
 from datetime import datetime, timezone
 from tqdm import tqdm
 from claudesync.utils import compute_md5_hash
+
 logger = logging.getLogger(__name__)
+
 
 class SyncManager:
     def __init__(self, provider, config):
@@ -45,7 +47,7 @@ class SyncManager:
     def update_existing_file(self, local_file, local_checksum, remote_file, remote_files_to_delete, synced_files):
         remote_checksum = compute_md5_hash(remote_file['content'])
         if local_checksum != remote_checksum:
-            logger.info(f'Updating {local_file} on remote...')
+            logger.debug(f'Updating {local_file} on remote...')
             with tqdm(total=2, desc=f'Updating {local_file}', leave=False) as pbar:
                 self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
                 pbar.update(1)
@@ -58,7 +60,7 @@ class SyncManager:
         remote_files_to_delete.discard(local_file)
 
     def upload_new_file(self, local_file, synced_files):
-        logger.info(f'Uploading new file {local_file} to remote...')
+        logger.debug(f'Uploading new file {local_file} to remote...')
         with open(os.path.join(self.local_path, local_file), 'r', encoding='utf-8') as file:
             content = file.read()
         with tqdm(total=1, desc=f'Uploading {local_file}', leave=False) as pbar:
@@ -75,7 +77,7 @@ class SyncManager:
                     if os.path.exists(local_file_path):
                         remote_timestamp = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00')).timestamp()
                         os.utime(local_file_path, (remote_timestamp, remote_timestamp))
-                        logger.info(f'Updated timestamp on local file {local_file_path}')
+                        logger.debug(f'Updated timestamp on local file {local_file_path}')
                     pbar.update(1)
 
     def sync_remote_to_local(self, remote_file, remote_files_to_delete, synced_files):
@@ -89,7 +91,7 @@ class SyncManager:
         local_mtime = datetime.fromtimestamp(os.path.getmtime(local_file_path), tz=timezone.utc)
         remote_mtime = datetime.fromisoformat(remote_file['created_at'].replace('Z', '+00:00'))
         if remote_mtime > local_mtime:
-            logger.info(f'Updating local file {remote_file['file_name']} from remote...')
+            logger.debug(f'Updating local file {remote_file['file_name']} from remote...')
             with tqdm(total=1, desc=f'Updating {remote_file['file_name']}', leave=False) as pbar:
                 with open(local_file_path, 'w', encoding='utf-8') as file:
                     file.write(remote_file['content'])
@@ -99,7 +101,7 @@ class SyncManager:
                 remote_files_to_delete.discard(remote_file['file_name'])
 
     def create_new_local_file(self, local_file_path, remote_file, remote_files_to_delete, synced_files):
-        logger.info(f'Creating new local file {remote_file['file_name']} from remote...')
+        logger.debug(f'Creating new local file {remote_file['file_name']} from remote...')
         with tqdm(total=1, desc=f'Creating {remote_file['file_name']}', leave=False) as pbar:
             with open(local_file_path, 'w', encoding='utf-8') as file:
                 file.write(remote_file['content'])
@@ -109,7 +111,7 @@ class SyncManager:
             remote_files_to_delete.discard(remote_file['file_name'])
 
     def delete_remote_files(self, file_to_delete, remote_files):
-        logger.info(f'Deleting {file_to_delete} from remote...')
+        logger.debug(f'Deleting {file_to_delete} from remote...')
         remote_file = next(rf for rf in remote_files if rf['file_name'] == file_to_delete)
         with tqdm(total=1, desc=f'Deleting {file_to_delete}', leave=False) as pbar:
             self.provider.delete_file(self.active_organization_id, self.active_project_id, remote_file['uuid'])
