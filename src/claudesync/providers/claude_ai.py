@@ -17,13 +17,14 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             headers["Content-Type"] = "application/json"
             data = json.dumps(data).encode("utf-8")
 
-        request = urllib.request.Request(url, method=method.upper(), headers=headers)
+        request = urllib.request.Request(url, method=method.upper(), headers=headers, data=data)
 
         try:
             with urllib.request.urlopen(request) as response:
                 response_body = response.read()
                 if response.info().get("Content-Encoding") == "gzip":
                     response_body = gzip.decompress(response_body)
+
                 response_body = response_body.decode("utf-8")
 
                 if response.status == 403:
