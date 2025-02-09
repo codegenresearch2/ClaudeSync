@@ -42,7 +42,7 @@ class SyncManager:
         remote_files_to_delete = {rf["file_name"] for rf in remote_files}
         synced_files = set()
 
-        with tqdm(total=len(local_files), desc="Syncing local to remote") as pbar:
+        with tqdm(total=len(local_files), desc="Local → Remote") as pbar:
             for local_file, local_checksum in local_files.items():
                 remote_file = next(
                     (rf for rf in remote_files if rf["file_name"] == local_file), None
@@ -62,7 +62,7 @@ class SyncManager:
         self.update_local_timestamps(remote_files, synced_files)
 
         if self.two_way_sync:
-            with tqdm(total=len(remote_files), desc="Syncing remote to local") as pbar:
+            with tqdm(total=len(remote_files), desc="Remote → Local") as pbar:
                 for remote_file in remote_files:
                     self.sync_remote_to_local(
                         remote_file, remote_files_to_delete, synced_files
