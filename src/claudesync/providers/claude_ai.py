@@ -21,19 +21,16 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "sessionKey": self.session_key,
         }
 
+        # Combine headers and cookies
+        combined_headers = headers.copy()
+        combined_headers.update(cookies)
+
         try:
             self.logger.debug(f"Making {method} request to {url}")
-            self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
-            if data:
-                self.logger.debug(f"Request data: {data}")
+            self.logger.debug(f"Headers: {combined_headers}")
 
             # Prepare the request
-            req = urllib.request.Request(url, method=method.upper(), headers=headers)
-            for key, value in cookies.items():
-                req.add_header(key, value)
-
-            # Add data if present
+            req = urllib.request.Request(url, method=method.upper(), headers=combined_headers)
             if data:
                 json_data = json.dumps(data).encode("utf-8")
                 req.data = json_data
@@ -72,8 +69,15 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-        content = e.read().decode("utf-8")
+        
+        try:
+            content = e.read().decode("utf-8")
+        except UnicodeDecodeError:
+            self.logger.error(f"Failed to decode response content: {e.read()}")
+            raise ProviderError(f"Failed to decode response content: {e.read()}")
+        
         self.logger.debug(f"Response content: {content}")
+        
         if e.code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
@@ -84,7 +88,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             )
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
-        if e.code == 429:
+        elif e.code == 429:
             try:
                 error_data = json.loads(content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
@@ -96,7 +100,13 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             except (KeyError, json.JSONDecodeError) as parse_error:
                 print(f"Failed to parse error response: {parse_error}")
             raise ProviderError("HTTP 429: Too Many Requests")
-        raise ProviderError(f"API request failed: {str(e)}")
+        else:
+            error_msg = (
+                f"API request failed with status code {e.code}. "
+                f"Response content: {content}"
+            )
+            self.logger.error(error_msg)
+            raise ProviderError(error_msg)
 
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
