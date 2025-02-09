@@ -9,9 +9,9 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
     def setUp(self):
         self.provider = BaseClaudeAIProvider("test_session_key")
 
-    @patch("claudesync.cli.main.ConfigManager")    
-    @patch("claudesync.providers.base_claude_ai.click.echo")    
-    @patch("claudesync.providers.base_claude_ai.click.prompt")    
+    @patch("claudesync.cli.main.ConfigManager")
+    @patch("claudesync.providers.base_claude_ai.click.echo")
+    @patch("claudesync.providers.base_claude_ai.click.prompt")
     def test_login(self, mock_prompt, mock_echo, mock_config_manager):
         mock_prompt.side_effect = ["sk-ant-test123", "Tue, 03 Sep 2099 05:49:08 GMT"]
         self.provider.get_organizations = MagicMock(
@@ -30,16 +30,16 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         expected_calls = [
             call("Please enter your sessionKey", type=str),
             call(
-                "Please enter the expires time for the sessionKey",
+                "Please enter the expires time for the sessionKey (optional)",
                 default=ANY, type=str,
             ),
         ]
 
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
 
-    @patch("claudesync.cli.main.ConfigManager")    
-    @patch("claudesync.providers.base_claude_ai.click.echo")    
-    @patch("claudesync.providers.base_claude_ai.click.prompt")    
+    @patch("claudesync.cli.main.ConfigManager")
+    @patch("claudesync.providers.base_claude_ai.click.echo")
+    @patch("claudesync.providers.base_claude_ai.click.prompt")
     def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
         mock_prompt.side_effect = [
             "invalid_key",
