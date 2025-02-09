@@ -88,4 +88,6 @@ def schedule(config, interval):
 
 def setup_windows_task(claudesync_path, interval):
     click.echo('Windows Task Scheduler setup:')
-    command = f'schtasks /create /tn 
+    command = f'schtasks /create /tn "ClaudeSync" /tr "{claudesync_path} sync" /sc minute /mo {interval}'
+    click.echo(f"Run this command to create the task:\n{command}")
+    click.echo('\nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
