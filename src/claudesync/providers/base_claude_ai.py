@@ -6,38 +6,80 @@ import gzip
 import io
 import json
 import click
-from .base_provider import BaseProvider
-from ..config_manager import ConfigManager
-from ..exceptions import ProviderError
+from abc import ABC, abstractmethod
 
 
-def is_url_encoded(s):
-    decoded_s = urllib.parse.unquote(s)
-    return decoded_s != s
+class BaseProvider(ABC):
+    @abstractmethod
+    def login(self):
+        """Authenticate with the provider and return a session key."""
+        pass
 
+    @abstractmethod
+    def get_organizations(self):
+        """Retrieve a list of organizations the user is a member of."""
+        pass
 
-def _get_session_key_expiry():
-    while True:
-        date_format = "%a, %d %b %Y %H:%M:%S %Z"
-        default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
-        formatted_expires = default_expires.strftime(date_format).strip()
-        expires = click.prompt(
-            "Please enter the expires time for the sessionKey (optional)",
-            default=formatted_expires,
-            type=str
-        ).strip()
-        try:
-            expires_on = datetime.datetime.strptime(expires, date_format)
-            return expires_on
-        except ValueError:
-            print("The entered date does not match the required format. Please try again.")
+    @abstractmethod
+    def get_projects(self, organization_id, include_archived=False):
+        """Retrieve a list of projects for a specified organization."""
+        pass
+
+    @abstractmethod
+    def list_files(self, organization_id, project_id):
+        """List all files within a specified project and organization."""
+        pass
+
+    @abstractmethod
+    def upload_file(self, organization_id, project_id, file_name, content):
+        """Upload a file to a specified project within an organization."""
+        pass
+
+    @abstractmethod
+    def delete_file(self, organization_id, project_id, file_uuid):
+        """Delete a file from a specified project within an organization."""
+        pass
+
+    @abstractmethod
+    def archive_project(self, organization_id, project_id):
+        """Archive a specified project within an organization."""
+        pass
+
+    @abstractmethod
+    def create_project(self, organization_id, name, description=""):
+        """Create a new project within a specified organization."""
+        pass
+
+    @abstractmethod
+    def get_chat_conversations(self, organization_id):
+        """Retrieve a list of chat conversations for a specified organization."""
+        pass
+
+    @abstractmethod
+    def get_published_artifacts(self, organization_id):
+        """Retrieve a list of published artifacts for a specified organization."""
+        pass
+
+    @abstractmethod
+    def get_chat_conversation(self, organization_id, conversation_id):
+        """Retrieve the full content of a specific chat conversation."""
+        pass
+
+    @abstractmethod
+    def get_artifact_content(self, organization_id, artifact_uuid):
+        """Retrieve the full content of a specific published artifact."""
+        pass
+
+    @abstractmethod
+    def delete_chat(self, organization_id, conversation_uuids):
+        """Delete specified chats for a given organization."""
+        pass
 
 
 class BaseClaudeAIProvider(BaseProvider):
     BASE_URL = "https://api.claude.ai/api"
 
     def __init__(self, session_key=None, session_key_expiry=None):
-        self.config = ConfigManager()
         self.session_key = session_key
         self.session_key_expiry = session_key_expiry
         self.logger = logging.getLogger(__name__)
