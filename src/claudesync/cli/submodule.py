@@ -33,7 +33,7 @@ def ls(config):
     else:
         click.echo("Detected submodules:")
         for submodule, detected_file in submodules:
-            click.echo(f"  - {submodule} [{detected_file}]")
+            click.echo(f"  - Submodule: {submodule} [{detected_file}]")
 
 @submodule.command()
 @click.pass_obj
