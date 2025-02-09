@@ -60,22 +60,25 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'")
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
-        session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
-        if not session_key.startswith("sk-ant"):
-            raise ProviderError("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
-        if is_url_encoded(session_key):
-            raise ProviderError("The session key appears to be URL-encoded. Please provide the decoded version.")
+        while True:
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
+            if not session_key.startswith("sk-ant"):
+                click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+                continue
+            if is_url_encoded(session_key):
+                click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
+                continue
 
-        self.session_key = session_key
-        self.session_key_expiry = _get_session_key_expiry()
+            self.session_key = session_key
+            self.session_key_expiry = _get_session_key_expiry()
 
-        try:
-            organizations = self.get_organizations()
-            if organizations:
-                return self.session_key, self.session_key_expiry
-        except ProviderError as e:
-            click.echo(e)
-            raise ProviderError("Failed to retrieve organizations. Please enter a valid sessionKey.")
+            try:
+                organizations = self.get_organizations()
+                if organizations:
+                    return self.session_key, self.session_key_expiry
+            except ProviderError as e:
+                click.echo(e)
+                continue
 
     def get_organizations(self):
         url = f"{self.BASE_URL}/organizations"
@@ -86,7 +89,7 @@ class BaseClaudeAIProvider(BaseProvider):
             organizations = json.loads(response_data)
         if not organizations:
             raise ProviderError("Unable to retrieve organization information")
-        return [{"id": org['uuid'], "name": org['name']} for org in organizations if (set(org.get('capabilities', [])) & {"chat", "claude_pro"} or set(org.get('capabilities', [])) & {"chat", "raven"})])
+        return [{"id": org['uuid'], "name": org['name']} for org in organizations if (set(org.get('capabilities', [])) & {"chat", "claude_pro"} or set(org.get('capabilities', [])) & {"chat", "raven"})]
 
     def get_projects(self, organization_id, include_archived=False):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects"
@@ -95,7 +98,7 @@ class BaseClaudeAIProvider(BaseProvider):
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             projects = json.loads(response_data)
-        return [{"id": project['uuid'], "name": project['name'], "archived_at": project.get('archived_at')} for project in projects if include_archived or project.get('archived_at') is None])
+        return [{"id": project['uuid'], "name": project['name'], "archived_at": project.get('archived_at')} for project in projects if include_archived or project.get('archived_at') is None]
 
     def _make_request(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
@@ -117,7 +120,7 @@ class BaseClaudeAIProvider(BaseProvider):
         with contextlib.closing(urllib.request.urlopen(req)) as response:
             response_data = response.read()
             files = json.loads(response_data)
-        return [{"uuid": file['uuid'], "file_name": file['file_name'], "content": file['content'], "created_at": file['created_at']} for file in files])
+        return [{"uuid": file['uuid'], "file_name": file['file_name'], "content": file['content'], "created_at": file['created_at']} for file in files]
 
     def upload_file(self, organization_id, project_id, file_name, content):
         endpoint = f"{self.BASE_URL}/organizations/{organization_id}/projects/{project_id}/docs"
