@@ -43,18 +43,28 @@ class TestUtils(unittest.TestCase):
                 f.write("Content of file3")
 
             # Create a test~ file
+            with open(os.path.join(tmpdir, "test~"), "w") as f:
+                f.write("*.log\n")
+
+            # Create version control system directories
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
                 with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
-            for buildDir in {"target", "build"}:
-                os.mkdir(os.path.join(tmpdir, buildDir))
-                with open(os.path.join(tmpdir, buildDir, "output.txt"), "w") as f:
-                    f.write("Build output")
+            # Create build directory
+            os.mkdir(os.path.join(tmpdir, "build"))
+            with open(os.path.join(tmpdir, "build", "output.txt"), "w") as f:
+                f.write("Build output")
 
-            with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
-                f.write("*.log\n/build\ntarget")
+            # Create .claudeignore file
+            with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
+                f.write("*.log\n/build/\n")
+
+            # Create claude_chats directory
+            os.mkdir(os.path.join(tmpdir, "claude_chats"))
+            with open(os.path.join(tmpdir, "claude_chats", "chat_file.txt"), "w") as f:
+                f.write("Chat content")
 
             local_files = get_local_files(tmpdir)
             logging.debug(local_files)
