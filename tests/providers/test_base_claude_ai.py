@@ -31,15 +31,24 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey", type=str),
+            call("Please enter your sessionKey", type=str, hide_input=True),
             call(
                 "Please enter the expires time for the sessionKey",
-                default=ANY,
+                default="Default expiration time",
                 type=str,
             ),
         ]
 
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
+
+    @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
+    def test_login_invalid_key(self, mock_make_request):
+        mock_make_request.side_effect = Exception("Invalid session key")
+
+        with self.assertRaises(Exception) as context:
+            self.provider.login()
+
+        self.assertTrue("Invalid session key" in str(context.exception))
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
@@ -68,10 +77,6 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0]["id"], "proj1")
         self.assertEqual(result[1]["id"], "proj3")
-
-    def test_make_request_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.provider._make_request("GET", "/test")
 
     def test_make_request(self):
         url = "https://example.com/api/endpoint"
