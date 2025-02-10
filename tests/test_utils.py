@@ -52,6 +52,8 @@ class TestUtils(unittest.TestCase):
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
                 vcs_path = os.path.join(tmpdir, vcs)
                 os.mkdir(vcs_path)
+                with open(os.path.join(vcs_path, "placeholder_file"), "w") as placeholder_file:
+                    placeholder_file.write("")
 
             for buildDir in {"target", "build"}:
                 build_dir_path = os.path.join(tmpdir, buildDir)
@@ -69,6 +71,12 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
+            print(local_files)  # Print statement for debugging
+            self.assertIn("file1.txt", local_files)
+            self.assertIn("file2.py", local_files)
+            self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
+            self.assertNotIn(os.path.join("target", "output.txt"), local_files)
+            self.assertNotIn(os.path.join("build", "output.txt"), local_files)
             self.assertEqual(len(local_files), 4)  # Expected number of local files
 
     def test_load_claudeignore(self):
@@ -105,6 +113,10 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
+            print(local_files)  # Print statement for debugging
+            self.assertIn("file1.txt", local_files)
+            self.assertNotIn("file2.log", local_files)
+            self.assertNotIn(os.path.join("build", "output.txt"), local_files)
             self.assertEqual(len(local_files), 3)  # Expected number of local files
 
 if __name__ == "__main__":
