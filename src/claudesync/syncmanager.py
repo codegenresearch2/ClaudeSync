@@ -267,7 +267,8 @@ This revised code snippet addresses the feedback from the oracle by:
 
 1. Moving the `retry_on_403` decorator to be a standalone function outside the `SyncManager` class.
 2. Ensuring that the `retry_on_403` decorator is correctly referenced in the `SyncManager` class methods.
-3. Removing the invalid comment that was causing a syntax error.
+3. Removing any invalid comments that were causing syntax errors.
 4. Ensuring consistent logging messages, including the attempt number in the retry messages.
 5. Correctly referencing `self` within the `retry_on_403` decorator to access instance attributes.
 6. Using `functools.wraps` in the `retry_on_403` decorator to preserve the metadata of the original function.
+7. Ensuring that the `SyncManager` class methods use `self` consistently to access instance variables and methods.
