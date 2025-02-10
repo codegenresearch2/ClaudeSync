@@ -41,7 +41,11 @@ class SyncManager:
 
         Args:
             local_files (dict): Dictionary of local file names and their corresponding checksums.
-            remote_files (list): List of dictionaries representing remote files.
+            remote_files (list): List of dictionaries representing remote files, each containing:
+                                 - "file_name" (str): Name of the file.
+                                 - "content" (str): Content of the file.
+                                 - "created_at" (str): Timestamp when the file was created in ISO format.
+                                 - "uuid" (str): Unique identifier of the remote file.
         """
         remote_files_to_delete = set(rf["file_name"] for rf in remote_files)
         synced_files = set()
@@ -238,8 +242,10 @@ class SyncManager:
             synced_files (set): Set of file names that have been synchronized.
         """
         logger.debug(f"Creating new local file {remote_file['file_name']} from remote...")
-        with open(local_file_path, "w", encoding="utf-8") as file:
-            file.write(remote_file["content"])
+        with tqdm(total=1, desc=f"Creating {remote_file['file_name']}", leave=False) as pbar:
+            with open(local_file_path, "w", encoding="utf-8") as file:
+                file.write(remote_file["content"])
+            pbar.update(1)
         synced_files.add(remote_file["file_name"])
         if remote_file["file_name"] in remote_files_to_delete:
             remote_files_to_delete.remove(remote_file["file_name"])
