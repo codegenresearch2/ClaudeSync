@@ -11,19 +11,20 @@ from claudesync.config_manager import ConfigManager
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
 
-def normalize_and_calculate_md5(content):
+def compute_md5_hash(content):
     """
-    Normalize the content by replacing line endings with Unix-style (\n) and then calculate the MD5 hash.
+    Compute the MD5 hash of the given content.
 
-    This function ensures that the content is normalized by replacing any carriage return followed by line feed (\r\n) with a simple line feed (\n). It then calculates the MD5 hash of the normalized content.
+    This function takes a string as input, encodes it into UTF-8, and then calculates the MD5 hash of the encoded string.
+    The result is a hexadecimal representation of the hash, which is commonly used for creating a quick and simple fingerprint of a piece of data.
 
     Args:
         content (str): The content for which to compute the MD5 hash.
 
     Returns:
-        str: The hexadecimal MD5 hash of the normalized content.
+        str: The hexadecimal MD5 hash of the input content.
     """
-    normalized_content = content.replace("\r\n", "\n").strip()
+    normalized_content = content.replace("\r\n", "\n").replace("\r", "\n").strip()
     return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
 
 def load_gitignore(base_path):
@@ -110,7 +111,7 @@ def process_file(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
-            return normalize_and_calculate_md5(content)
+            return compute_md5_hash(content)
     except UnicodeDecodeError:
         logger.debug(f"Unable to read {file_path} as UTF-8 text. Skipping.")
     except Exception as e:
