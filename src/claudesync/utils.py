@@ -11,18 +11,17 @@ from claudesync.config_manager import ConfigManager
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
 
-def compute_md5_hash(content):
+def normalize_and_calculate_md5(content):
     """
-    Compute the MD5 hash of the given content.
+    Normalize the content by replacing line endings with Unix-style (\n) and then calculate the MD5 hash.
 
-    This function takes a string as input, encodes it into UTF-8, and then calculates the MD5 hash of the encoded string.
-    The result is a hexadecimal representation of the hash, which is commonly used for creating a quick and simple fingerprint of a piece of data.
+    This function ensures that the content is normalized by replacing any carriage return followed by line feed (\r\n) with a simple line feed (\n). It then trims any leading and trailing whitespace from the content. Finally, it calculates the MD5 hash of the normalized content.
 
     Args:
-        content (str): The content for which to compute the MD5 hash.
+        content (str): The content for which to calculate the MD5 hash.
 
     Returns:
-        str: The hexadecimal MD5 hash of the input content.
+        str: The hexadecimal MD5 hash of the normalized content.
     """
     normalized_content = content.replace("\r\n", "\n").strip()
     return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
@@ -111,7 +110,7 @@ def process_file(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
-            return compute_md5_hash(content)
+            return normalize_and_calculate_md5(content)
     except UnicodeDecodeError:
         logger.debug(f"Unable to read {file_path} as UTF-8 text. Skipping.")
     except Exception as e:
@@ -152,7 +151,7 @@ def get_local_files(local_path):
             rel_path = os.path.join(rel_root, filename)
             full_path = os.path.join(root, filename)
 
-            if should_process_file(full_path, filename, gitignore, local_path, claudeignore):
+            if rel_path != ".gitignore" and should_process_file(full_path, filename, gitignore, local_path, claudeignore):
                 file_hash = process_file(full_path)
                 if file_hash:
                     files[rel_path] = file_hash
