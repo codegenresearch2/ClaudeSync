@@ -247,8 +247,10 @@ class SyncManager:
         logger.debug(
             f"Creating new local file {remote_file['file_name']} from remote..."
         )
-        with open(local_file_path, "w", encoding="utf-8") as file:
-            file.write(remote_file["content"])
+        with tqdm(total=1, desc=f"Creating {remote_file['file_name']}", leave=False) as pbar:
+            with open(local_file_path, "w", encoding="utf-8") as file:
+                file.write(remote_file["content"])
+            pbar.update(1)
         synced_files.add(remote_file["file_name"])
         if remote_file["file_name"] in remote_files_to_delete:
             remote_files_to_delete.remove(remote_file["file_name"])
@@ -267,7 +269,9 @@ class SyncManager:
         remote_file = next(
             rf for rf in remote_files if rf["file_name"] == file_to_delete
         )
-        self.provider.delete_file(
-            self.active_organization_id, self.active_project_id, remote_file["uuid"]
-        )
+        with tqdm(total=1, desc=f"Deleting {file_to_delete}", leave=False) as pbar:
+            self.provider.delete_file(
+                self.active_organization_id, self.active_project_id, remote_file["uuid"]
+            )
+            pbar.update(1)
         time.sleep(self.upload_delay)
