@@ -36,7 +36,7 @@ def retry_on_403(max_retries=3, delay=1):
                     return func(*args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
-                        logger_to_use.warning(f"Received 403 error, retrying in {delay} seconds...")
+                        logger_to_use.warning(f"Received 403 error on attempt {attempt + 1} of {max_retries}. Retrying in {delay} seconds...")
                         time.sleep(delay)
                     else:
                         raise
@@ -69,7 +69,7 @@ class SyncManager:
         # Check for existing remote projects
         self.check_existing_remote_projects()
 
-    @retry_on_403
+    @retry_on_403()
     def check_existing_remote_projects(self):
         """
         Check for existing remote projects and handle any errors more robustly.
