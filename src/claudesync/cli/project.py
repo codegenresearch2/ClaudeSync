@@ -16,7 +16,7 @@ def project():
     """Manage ai projects within the active organization."""
     pass
 
-@click.command()
+@project.command()
 @click.pass_obj
 @handle_errors
 def create(config):
@@ -47,7 +47,7 @@ def create(config):
     except ProviderError as e:
         click.echo(f"Failed to create project: {str(e)}")
 
-@click.command()
+@project.command()
 @click.pass_obj
 @handle_errors
 def archive(config):
@@ -73,7 +73,7 @@ def archive(config):
     else:
         click.echo("Invalid selection. Please try again.")
 
-@click.command()
+@project.command()
 @click.option(
     "-a",
     "--all",
@@ -125,7 +125,7 @@ def select(ctx, show_all):
     else:
         click.echo("Invalid selection. Please try again.")
 
-@click.command()
+@project.command()
 @click.option(
     "-a",
     "--all",
@@ -148,7 +148,7 @@ def ls(config, show_all):
             status = " (Archived)" if project.get("archived_at") else ""
             click.echo(f"  - {project['name']} (ID: {project['id']}){status}")
 
-@click.command()
+@project.command()
 @click.option("--category", help="Specify the file category to sync")
 @click.pass_obj
 @handle_errors
