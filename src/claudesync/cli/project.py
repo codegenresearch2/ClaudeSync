@@ -8,7 +8,6 @@ from ..utils import (
     get_local_files,
     detect_submodules,
     validate_and_store_local_path,
-    retry_on_403
 )
 from tqdm import tqdm
 
