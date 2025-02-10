@@ -90,10 +90,10 @@ class TestClaudeAIProvider(unittest.TestCase):
         with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
             mock_get_session_key.return_value = "sk-ant-1234"
 
-            with self.assertRaises(ProviderError) as context:
+            with self.assertRaises(urllib.error.HTTPError) as context:
                 self.provider._make_request("GET", "/test")
 
-            self.assertIn("403 Forbidden error", str(context.exception))
+            self.assertEqual(context.exception.code, 403)
 
     @patch("urllib.request.urlopen")
     def test_make_request_gzip_response(self, mock_urlopen):
