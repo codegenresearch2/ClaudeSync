@@ -2,7 +2,6 @@ import os
 import shutil
 import sys
 import click
-import logging
 from crontab import CronTab
 
 from claudesync.utils import get_local_files
@@ -20,13 +19,13 @@ def ls(config):
     active_project_id = config.get("active_project_id")
     files = provider.list_files(active_organization_id, active_project_id)
     if not files:
-        logging.info("No files found in the active project.")
+        click.echo("No files found in the active project.")
     else:
-        logging.info(
+        click.echo(
             f"Files in project '{config.get('active_project_name')}' (ID: {active_project_id}):"
         )
         for file in files:
-            logging.info(
+            click.echo(
                 f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})"
             )
 
@@ -44,21 +43,20 @@ def sync(config):
     )
     local_files = get_local_files(config.get("local_path"))
     sync_manager.sync(local_files, remote_files)
-    logging.info("Project sync completed successfully.")
 
     # Sync chats
-    sync_chats(provider, config, overwrite=False)
-    logging.info("Chat sync completed successfully.")
+    sync_chats(provider, config)
+    click.echo("Projects and chats have been synchronized successfully.")
 
 def validate_local_path(local_path):
     if not local_path:
-        logging.error(
+        click.echo(
             "No local path set. Please select or create a project to set the local path."
         )
         sys.exit(1)
     if not os.path.exists(local_path):
-        logging.error(f"The configured local path does not exist: {local_path}")
-        logging.info("Please update the local path by selecting or creating a project.")
+        click.echo(f"The configured local path does not exist: {local_path}")
+        click.echo("Please update the local path by selecting or creating a project.")
         sys.exit(1)
 
 @click.command()
@@ -69,7 +67,7 @@ def schedule(config, interval):
     """Set up automated synchronization at regular intervals."""
     claudesync_path = shutil.which("claudesync")
     if not claudesync_path:
-        logging.error(
+        click.echo(
             "Error: claudesync not found in PATH. Please ensure it's installed correctly."
         )
         sys.exit(1)
@@ -80,15 +78,15 @@ def schedule(config, interval):
         setup_unix_cron(claudesync_path, interval)
 
 def setup_windows_task(claudesync_path, interval):
-    logging.info("Windows Task Scheduler setup:")
+    click.echo("Windows Task Scheduler setup:")
     command = f'schtasks /create /tn "ClaudeSync" /tr "{claudesync_path} sync" /sc minute /mo {interval}'
-    logging.info(f"Run this command to create the task:\n{command}")
-    logging.info('\nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
+    click.echo(f"Run this command to create the task:\n{command}")
+    click.echo('\nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
 
 def setup_unix_cron(claudesync_path, interval):
     cron = CronTab(user=True)
     job = cron.new(command=f"{claudesync_path} sync")
     job.minute.every(interval)
     cron.write()
-    logging.info(f"Cron job created successfully! It will run every {interval} minutes.")
-    logging.info("\nTo remove the cron job, run: crontab -e and remove the line for ClaudeSync")
+    click.echo(f"Cron job created successfully! It will run every {interval} minutes.")
+    click.echo("\nTo remove the cron job, run: crontab -e and remove the line for ClaudeSync")
