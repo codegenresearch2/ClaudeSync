@@ -10,14 +10,14 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
-def save_artifacts(artifacts, chat_folder, message_context):
+def save_artifacts(artifacts, chat_folder, message):
     """
     Save artifacts to the specified chat folder.
 
     Args:
         artifacts (list): A list of dictionaries containing artifact information.
         chat_folder (str): The folder where the artifacts will be saved.
-        message_context (dict): The context of the message containing the artifacts.
+        message (dict): The message metadata.
     """
     artifact_folder = os.path.join(chat_folder, "artifacts")
     os.makedirs(artifact_folder, exist_ok=True)
@@ -26,9 +26,12 @@ def save_artifacts(artifacts, chat_folder, message_context):
             artifact_folder,
             f"{artifact['identifier']}.{get_file_extension(artifact['type'])}",
         )
-        with open(artifact_file, "w") as f:
-            f.write(artifact["content"])
-    logger.info(f"Saved {len(artifacts)} artifacts in message {message_context['message_uuid']}")
+        if not os.path.exists(artifact_file):
+            with open(artifact_file, "w") as f:
+                f.write(artifact["content"])
+            logger.info(f"Saved artifact {artifact['identifier']} in message {message['uuid']}")
+        else:
+            logger.debug(f"Artifact {artifact['identifier']} already exists, skipping.")
 
 
 def process_message(provider, config, chat_folder, message, organization_id, project_id):
@@ -47,12 +50,15 @@ def process_message(provider, config, chat_folder, message, organization_id, pro
     if not os.path.exists(message_file):
         with open(message_file, "w") as f:
             json.dump(message, f, indent=2)
+        logger.info(f"Saved message {message['uuid']}")
 
-    if message["sender"] == "assistant":
-        artifacts = extract_artifacts(message["text"])
-        if artifacts:
-            logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-            save_artifacts(artifacts, chat_folder, {"message_uuid": message["uuid"]})
+        if message["sender"] == "assistant":
+            artifacts = extract_artifacts(message["text"])
+            if artifacts:
+                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+                save_artifacts(artifacts, chat_folder, message)
+    else:
+        logger.debug(f"Message {message['uuid']} already exists, skipping.")
 
 
 def sync_chat(provider, config, chat, organization_id, project_id):
@@ -78,6 +84,7 @@ def sync_chat(provider, config, chat, organization_id, project_id):
     # Save chat metadata
     with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
         json.dump(chat, f, indent=2)
+    logger.info(f"Saved chat metadata for {chat['uuid']}")
 
     # Fetch full chat conversation
     logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
