@@ -1,7 +1,7 @@
 import datetime
 import logging
 import urllib.parse
-import requests
+import click
 from .base_provider import BaseProvider
 from ..config_manager import ConfigManager
 from ..exceptions import ProviderError
@@ -17,16 +17,16 @@ def _get_session_key_expiry():
         date_format = "%a, %d %b %Y %H:%M:%S %Z"
         default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
-        expires = input(
-            "Please enter the expires time for the sessionKey (optional): "
+        expires = click.prompt(
+            "Please enter the expires time for the sessionKey (optional): ",
+            default=formatted_expires,
+            type=str,
         ).strip()
-        if not expires:
-            expires = formatted_expires
         try:
             expires_on = datetime.datetime.strptime(expires, date_format)
             return expires_on
         except ValueError:
-            print("The entered date does not match the required format. Please try again.")
+            click.echo("The entered date does not match the required format. Please try again.")
 
 
 class BaseClaudeAIProvider(BaseProvider):
@@ -45,24 +45,24 @@ class BaseClaudeAIProvider(BaseProvider):
         self.logger.setLevel(getattr(logging, log_level))
 
     def login(self):
-        print("To obtain your session key, please follow these steps:")
-        print("1. Open your web browser and go to https://claude.ai")
-        print("2. Log in to your Claude account if you haven't already")
-        print("3. Once logged in, open your browser's developer tools:")
-        print("   - Chrome/Edge: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
-        print("   - Firefox: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
-        print("   - Safari: Enable developer tools in Preferences > Advanced, then press Cmd+Option+I")
-        print("4. In the developer tools, go to the 'Application' tab (Chrome/Edge) or 'Storage' tab (Firefox)")
-        print("5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'")
-        print("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
+        click.echo("To obtain your session key, please follow these steps:")
+        click.echo("1. Open your web browser and go to https://claude.ai")
+        click.echo("2. Log in to your Claude account if you haven't already")
+        click.echo("3. Once logged in, open your browser's developer tools:")
+        click.echo("   - Chrome/Edge: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
+        click.echo("   - Firefox: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
+        click.echo("   - Safari: Enable developer tools in Preferences > Advanced, then press Cmd+Option+I")
+        click.echo("4. In the developer tools, go to the 'Application' tab (Chrome/Edge) or 'Storage' tab (Firefox)")
+        click.echo("5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'")
+        click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
         while True:
-            session_key = input("Please enter your sessionKey: ")
+            session_key = click.prompt("Please enter your sessionKey: ", type=str)
             if not session_key.startswith("sk-ant"):
-                print("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+                click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
                 continue
             if is_url_encoded(session_key):
-                print("The session key appears to be URL-encoded. Please provide the decoded version.")
+                click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
                 continue
 
             expires = _get_session_key_expiry()
@@ -73,8 +73,8 @@ class BaseClaudeAIProvider(BaseProvider):
                 if organizations:
                     break  # Exit the loop if get_organizations is successful
             except ProviderError as e:
-                print(e)
-                print("Failed to retrieve organizations. Please enter a valid sessionKey.")
+                click.echo(e)
+                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
         return self.session_key, self.session_key_expiry
 
@@ -171,37 +171,4 @@ class BaseClaudeAIProvider(BaseProvider):
         return self._make_request("POST", endpoint, data)
 
     def _make_request(self, method, endpoint, data=None):
-        url = urllib.parse.urljoin(self.BASE_URL, endpoint)
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        if self.session_key:
-            headers["Authorization"] = f"Bearer {self.session_key}"
-
-        response = requests.request(method, url, headers=headers, json=data)
-
-        if response.status_code == 204:
-            return None
-
-        if response.status_code == 401:
-            raise ProviderError("Unauthorized: Invalid session key")
-
-        if response.status_code == 403:
-            raise ProviderError("Forbidden: Insufficient permissions")
-
-        if response.status_code == 404:
-            raise ProviderError("Not Found: Resource does not exist")
-
-        if response.status_code == 500:
-            raise ProviderError("Internal Server Error: Please try again later")
-
-        try:
-            response_data = response.json()
-        except ValueError:
-            raise ProviderError(f"Unexpected response: {response.text}")
-
-        if "error" in response_data:
-            raise ProviderError(f"API Error: {response_data['error']}")
-
-        return response_data
+        raise NotImplementedError("This method should be implemented by subclasses")
