@@ -9,7 +9,6 @@ from .exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
-
 def sync_chats(provider, config, sync_all=False):
     """
     Synchronize chats and their artifacts from the remote source.
@@ -45,37 +44,90 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        if sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id):
-            logger.info(f"Processing chat {chat['uuid']}")
-            chat_folder = os.path.join(chat_destination, chat["uuid"])
-            os.makedirs(chat_folder, exist_ok=True)
-
-            with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
-                json.dump(chat, f, indent=2)
-
-            logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
-            full_chat = provider.get_chat_conversation(organization_id, chat["uuid"])
-
-            for message in full_chat["chat_messages"]:
-                message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-                with open(message_file, "w") as f:
-                    json.dump(message, f, indent=2)
-
-                if message["sender"] == "assistant":
-                    artifacts = extract_artifacts(message["text"])
-                    if artifacts:
-                        logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                        artifact_folder = os.path.join(chat_folder, "artifacts")
-                        os.makedirs(artifact_folder, exist_ok=True)
-                        for artifact in artifacts:
-                            artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
-                            with open(artifact_file, "w") as f:
-                                f.write(artifact["content"])
-        else:
-            logger.debug(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
+        sync_single_chat(provider, config, chat, chat_destination)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
+def sync_single_chat(provider, config, chat, chat_destination):
+    """
+    Synchronize a single chat and its artifacts.
+
+    Args:
+        provider: The API provider instance.
+        config: The configuration manager instance.
+        chat: The chat metadata.
+        chat_destination: The local directory to save the chat data.
+    """
+    if sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id):
+        logger.info(f"Processing chat {chat['uuid']}")
+        chat_folder = os.path.join(chat_destination, chat["uuid"])
+        os.makedirs(chat_folder, exist_ok=True)
+
+        save_chat_metadata(chat, chat_folder)
+
+        logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
+        full_chat = provider.get_chat_conversation(organization_id, chat["uuid"])
+
+        save_chat_messages(full_chat, chat_folder)
+
+        handle_artifacts(full_chat, chat_folder)
+
+def save_chat_metadata(chat, chat_folder):
+    """
+    Save chat metadata to a file.
+
+    Args:
+        chat: The chat metadata.
+        chat_folder: The local directory to save the chat data.
+    """
+    metadata_file = os.path.join(chat_folder, "metadata.json")
+    with open(metadata_file, "w") as f:
+        json.dump(chat, f, indent=2)
+
+def save_chat_messages(full_chat, chat_folder):
+    """
+    Save chat messages to files.
+
+    Args:
+        full_chat: The full chat conversation.
+        chat_folder: The local directory to save the chat data.
+    """
+    for message in full_chat["chat_messages"]:
+        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+        with open(message_file, "w") as f:
+            json.dump(message, f, indent=2)
+
+def handle_artifacts(full_chat, chat_folder):
+    """
+    Handle and save artifacts found in the chat messages.
+
+    Args:
+        full_chat: The full chat conversation.
+        chat_folder: The local directory to save the chat data.
+    """
+    artifact_folder = os.path.join(chat_folder, "artifacts")
+    os.makedirs(artifact_folder, exist_ok=True)
+
+    for message in full_chat["chat_messages"]:
+        if message["sender"] == "assistant":
+            artifacts = extract_artifacts(message["text"])
+            if artifacts:
+                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+                for artifact in artifacts:
+                    save_artifact(artifact, artifact_folder)
+
+def save_artifact(artifact, artifact_folder):
+    """
+    Save an artifact to a file.
+
+    Args:
+        artifact: The artifact information.
+        artifact_folder: The local directory to save the artifact.
+    """
+    artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
+    if not os.path.exists(artifact_file):
+        with open(artifact_file, "w") as f:
+            f.write(artifact["content"])
 
 def get_file_extension(artifact_type):
     """
@@ -95,7 +147,6 @@ def get_file_extension(artifact_type):
         "application/vnd.ant.react": "jsx",
     }
     return type_to_extension.get(artifact_type, "txt")
-
 
 def extract_artifacts(text):
     """
