@@ -1,6 +1,6 @@
 import datetime
 import unittest
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call, ANY
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
 
 class TestBaseClaudeAIProvider(unittest.TestCase):
