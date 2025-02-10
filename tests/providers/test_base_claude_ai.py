@@ -4,6 +4,8 @@ from unittest.mock import patch, MagicMock, call, ANY
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
 import urllib.request
 import json
+import gzip
+import io
 
 class TestBaseClaudeAIProvider(unittest.TestCase):
 
@@ -91,7 +93,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         # Mock the response
         response_data = {"key": "value"}
         response = MagicMock()
-        response.read.return_value = json.dumps(response_data).encode()
+        response.read.return_value = gzip.compress(json.dumps(response_data).encode())
         response.getheader.return_value = "application/json"
 
         # Mock the urllib.request.urlopen function
@@ -115,10 +117,6 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
 
             # Assert that the error was logged
             self.assertTrue("Error making request" in str(context.exception))
-
-    def test_make_request_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.provider._make_request("GET", "/test")
 
 if __name__ == "__main__":
     unittest.main()
