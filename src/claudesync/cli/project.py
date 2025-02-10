@@ -1,11 +1,10 @@
 import os
+import logging
 
 import click
-from tqdm import tqdm
-
 from claudesync.exceptions import ProviderError
 from .submodule import submodule
-from ..syncmanager import SyncManager, retry_on_403
+from ..syncmanager import SyncManager
 from ..utils import (
     handle_errors,
     validate_and_get_provider,
@@ -14,12 +13,12 @@ from ..utils import (
     validate_and_store_local_path,
 )
 
+logging.basicConfig(level=logging.INFO)
 
 @click.group()
 def project():
     """Manage ai projects within the active organization."""
     pass
-
 
 @project.command()
 @click.pass_obj
@@ -37,21 +36,16 @@ def create(config):
         new_project = provider.create_project(
             active_organization_id, title, description
         )
-        click.echo(
-            f"Project '{new_project['name']}' (uuid: {new_project['uuid']}) has been created successfully."
-        )
+        logging.info(f"Project '{new_project['name']}' (uuid: {new_project['uuid']}) has been created successfully.")
 
         config.set("active_project_id", new_project["uuid"])
         config.set("active_project_name", new_project["name"])
-        click.echo(
-            f"Active project set to: {new_project['name']} (uuid: {new_project['uuid']})"
-        )
+        logging.info(f"Active project set to: {new_project['name']} (uuid: {new_project['uuid']})")
 
         validate_and_store_local_path(config)
 
     except ProviderError as e:
-        click.echo(f"Failed to create project: {str(e)}")
-
+        logging.error(f"Failed to create project: {str(e)}")
 
 @project.command()
 @click.pass_obj
@@ -62,7 +56,7 @@ def archive(config):
     active_organization_id = config.get("active_organization_id")
     projects = provider.get_projects(active_organization_id, include_archived=False)
     if not projects:
-        click.echo("No active projects found.")
+        logging.info("No active projects found.")
         return
     click.echo("Available projects to archive:")
     for idx, project in enumerate(projects, 1):
@@ -75,10 +69,9 @@ def archive(config):
             f"Archived projects cannot be modified but can still be viewed."
         ):
             provider.archive_project(active_organization_id, selected_project["id"])
-            click.echo(f"Project '{selected_project['name']}' has been archived.")
+            logging.info(f"Project '{selected_project['name']}' has been archived.")
     else:
-        click.echo("Invalid selection. Please try again.")
-
+        logging.warning("Invalid selection. Please try again.")
 
 @project.command()
 @click.option(
@@ -101,11 +94,10 @@ def select(ctx, show_all):
     if show_all:
         selectable_projects = projects
     else:
-        # Filter out submodule projects
         selectable_projects = [p for p in projects if "-SubModule-" not in p["name"]]
 
     if not selectable_projects:
-        click.echo("No active projects found.")
+        logging.info("No active projects found.")
         return
 
     click.echo("Available projects:")
@@ -124,14 +116,11 @@ def select(ctx, show_all):
         selected_project = selectable_projects[selection - 1]
         config.set("active_project_id", selected_project["id"])
         config.set("active_project_name", selected_project["name"])
-        click.echo(
-            f"Selected project: {selected_project['name']} (ID: {selected_project['id']})"
-        )
+        logging.info(f"Selected project: {selected_project['name']} (ID: {selected_project['id']})")
 
         validate_and_store_local_path(config)
     else:
-        click.echo("Invalid selection. Please try again.")
-
+        logging.warning("Invalid selection. Please try again.")
 
 @project.command()
 @click.option(
@@ -149,13 +138,12 @@ def ls(config, show_all):
     active_organization_id = config.get("active_organization_id")
     projects = provider.get_projects(active_organization_id, include_archived=show_all)
     if not projects:
-        click.echo("No projects found.")
+        logging.info("No projects found.")
     else:
-        click.echo("Remote projects:")
+        logging.info("Remote projects:")
         for project in projects:
             status = " (Archived)" if project.get("archived_at") else ""
-            click.echo(f"  - {project['name']} (ID: {project['id']}){status}")
-
+            logging.info(f"  - {project['name']} (ID: {project['id']}){status}")
 
 @project.command()
 @click.option("--category", help="Specify the file category to sync")
@@ -171,36 +159,31 @@ def sync(config, category):
     local_path = config.get("local_path")
 
     if not local_path:
-        click.echo(
+        logging.warning(
             "No local path set for this project. Please select an existing project or create a new one using "
             "'claudesync project select' or 'claudesync project create'."
         )
         return
 
-    # Detect local submodules
     submodule_detect_filenames = config.get("submodule_detect_filenames", [])
     local_submodules = detect_submodules(local_path, submodule_detect_filenames)
 
-    # Fetch all remote projects
     all_remote_projects = provider.get_projects(
         active_organization_id, include_archived=False
     )
 
-    # Find remote submodule projects
     remote_submodule_projects = [
         project
         for project in all_remote_projects
         if project["name"].startswith(f"{active_project_name}-SubModule-")
     ]
 
-    # Sync main project
     sync_manager = SyncManager(provider, config)
     remote_files = provider.list_files(active_organization_id, active_project_id)
     local_files = get_local_files(local_path, category)
     sync_manager.sync(local_files, remote_files)
-    click.echo(f"Main project '{active_project_name}' synced successfully.")
+    logging.info(f"Main project '{active_project_name}' synced successfully.")
 
-    # Sync submodules
     for local_submodule, detected_file in local_submodules:
         submodule_name = os.path.basename(local_submodule)
         remote_project = next(
@@ -213,14 +196,13 @@ def sync(config, category):
         )
 
         if remote_project:
-            click.echo(f"Syncing submodule '{submodule_name}'...")
+            logging.info(f"Syncing submodule '{submodule_name}'...")
             submodule_path = os.path.join(local_path, local_submodule)
             submodule_files = get_local_files(submodule_path, category)
             remote_submodule_files = provider.list_files(
                 active_organization_id, remote_project["id"]
             )
 
-            # Create a new SyncManager for the submodule
             submodule_config = config.config.copy()
             submodule_config["active_project_id"] = remote_project["id"]
             submodule_config["active_project_name"] = remote_project["name"]
@@ -228,68 +210,12 @@ def sync(config, category):
             submodule_sync_manager = SyncManager(provider, submodule_config)
 
             submodule_sync_manager.sync(submodule_files, remote_submodule_files)
-            click.echo(f"Submodule '{submodule_name}' synced successfully.")
+            logging.info(f"Submodule '{submodule_name}' synced successfully.")
         else:
-            click.echo(
+            logging.warning(
                 f"No remote project found for submodule '{submodule_name}'. Skipping sync."
             )
 
-    click.echo("Project sync completed successfully, including available submodules.")
-
-
-@project.command()
-@click.option(
-    "-a", "--include-archived", is_flag=True, help="Include archived projects"
-)
-@click.option("-y", "--yes", is_flag=True, help="Skip confirmation prompt")
-@click.pass_obj
-@handle_errors
-def truncate(config, include_archived, yes):
-    """Truncate all projects."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get("active_organization_id")
-
-    projects = provider.get_projects(
-        active_organization_id, include_archived=include_archived
-    )
-
-    if not projects:
-        click.echo("No projects found.")
-        return
-
-    if not yes:
-        click.echo("This will delete ALL files from the following projects:")
-        for project in projects:
-            status = " (Archived)" if project.get("archived_at") else ""
-            click.echo(f"  - {project['name']} (ID: {project['id']}){status}")
-        if not click.confirm(
-            "Are you sure you want to continue? This may take some time."
-        ):
-            click.echo("Operation cancelled.")
-            return
-
-    with tqdm(total=len(projects), desc="Deleting files from projects") as pbar:
-        for project in projects:
-            delete_files_from_project(
-                provider, active_organization_id, project["id"], project["name"]
-            )
-            pbar.update(1)
-
-    click.echo("All files have been deleted from all projects.")
-
-
-@retry_on_403()
-def delete_files_from_project(provider, organization_id, project_id, project_name):
-    try:
-        files = provider.list_files(organization_id, project_id)
-        with tqdm(
-            total=len(files), desc=f"Deleting files from {project_name}", leave=False
-        ) as file_pbar:
-            for file in files:
-                provider.delete_file(organization_id, project_id, file["uuid"])
-                file_pbar.update(1)
-    except ProviderError as e:
-        click.echo(f"Error deleting files from project {project_name}: {str(e)}")
-
+    logging.info("Project sync completed successfully, including available submodules.")
 
 project.add_command(submodule)
