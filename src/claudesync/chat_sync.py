@@ -24,8 +24,27 @@ def save_artifacts(artifacts, chat_folder, message):
 
     for artifact in artifacts:
         artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
-        with open(artifact_file, "w") as f:
-            f.write(artifact["content"])
+        if not os.path.exists(artifact_file):
+            with open(artifact_file, "w") as f:
+                f.write(artifact["content"])
+        else:
+            logger.warning(f"Artifact file {artifact_file} already exists, skipping write.")
+
+
+def save_message(chat_folder, message):
+    """
+    Save a message to the specified chat folder.
+
+    Args:
+        chat_folder (str): The folder where the message will be saved.
+        message (dict): The message to be saved.
+    """
+    message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+    if not os.path.exists(message_file):
+        with open(message_file, "w") as f:
+            json.dump(message, f, indent=2)
+    else:
+        logger.warning(f"Message file {message_file} already exists, skipping write.")
 
 
 def sync_chat(provider, config, chat, chat_destination):
@@ -51,15 +70,11 @@ def sync_chat(provider, config, chat, chat_destination):
 
     # Process each message in the chat
     for message in full_chat["chat_messages"]:
-        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-        with open(message_file, "w") as f:
-            json.dump(message, f, indent=2)
-
         if message["sender"] == "assistant":
             artifacts = extract_artifacts(message["text"])
-            if artifacts:
-                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                save_artifacts(artifacts, chat_folder, message)
+            logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+            save_artifacts(artifacts, chat_folder, message)
+        save_message(chat_folder, message)
 
 
 def sync_chats(provider, config, sync_all=False):
