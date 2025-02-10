@@ -2,7 +2,6 @@ import urllib.request
 import urllib.error
 import json
 import gzip
-from functools import wraps
 from datetime import datetime, timezone
 
 from .base_claude_ai import BaseClaudeAIProvider
@@ -98,7 +97,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             )
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
-        if e.code == 429:
+        elif e.code == 429:
             try:
                 error_data = json.loads(content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
@@ -110,7 +109,13 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             except (KeyError, json.JSONDecodeError) as parse_error:
                 print(f"Failed to parse error response: {parse_error}")
             raise ProviderError("HTTP 429: Too Many Requests")
-        raise ProviderError(f"API request failed: {str(e)}")
+        else:
+            error_message = (
+                f"API request failed with status code {e.code}. "
+                f"Response content: {content}. Request headers: {headers}"
+            )
+            self.logger.error(error_message)
+            raise ProviderError(error_message)
 
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
