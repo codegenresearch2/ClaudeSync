@@ -33,17 +33,20 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         expected_calls = [
             call("Please enter your sessionKey", type=str, hide_input=True),
             call(
-                "Please enter the expires time for the sessionKey",
-                default="Default expiration time",
+                "Please enter the expires time for the sessionKey (optional)",
+                default=ANY,
                 type=str,
             ),
         ]
 
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
 
-    @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
-    def test_login_invalid_key(self, mock_make_request):
-        mock_make_request.side_effect = Exception("Invalid session key")
+    @patch("claudesync.cli.main.ConfigManager")
+    @patch("claudesync.providers.base_claude_ai.click.echo")
+    @patch("claudesync.providers.base_claude_ai.click.prompt")
+    def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
+        mock_prompt.side_effect = ["invalid_key"]
+        mock_config_manager.return_value = MagicMock()
 
         with self.assertRaises(Exception) as context:
             self.provider.login()
