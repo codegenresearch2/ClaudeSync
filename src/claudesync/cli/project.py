@@ -12,15 +12,9 @@ from ..utils import (
 from functools import wraps
 
 
-def log_errors(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            click.echo(f"An error occurred: {str(e)}")
-            raise
-    return wrapper
+def submodule():
+    """Manage submodules within the current project."""
+    pass
 
 
 @click.group()
@@ -31,7 +25,7 @@ def project():
 
 @project.command()
 @click.pass_obj
-@log_errors
+@handle_errors
 def create(config):
     """Create a new project in the active organization."""
     provider = validate_and_get_provider(config)
@@ -63,7 +57,7 @@ def create(config):
 
 @project.command()
 @click.pass_obj
-@log_errors
+@handle_errors
 def archive(config):
     """Archive an existing project."""
     provider = validate_and_get_provider(config)
@@ -97,7 +91,7 @@ def archive(config):
     help="Include submodule projects in the selection",
 )
 @click.pass_context
-@log_errors
+@handle_errors
 def select(ctx, show_all):
     """Set the active project for syncing."""
     config = ctx.obj
@@ -150,7 +144,7 @@ def select(ctx, show_all):
     help="Include archived projects in the list",
 )
 @click.pass_obj
-@log_errors
+@handle_errors
 def ls(config, show_all):
     """List all projects in the active organization."""
     provider = validate_and_get_provider(config)
@@ -168,7 +162,7 @@ def ls(config, show_all):
 @project.command()
 @click.option("--category", help="Specify the file category to sync")
 @click.pass_obj
-@log_errors
+@handle_errors
 def sync(config, category):
     """Synchronize the project files, including submodules if they exist remotely."""
     provider = validate_and_get_provider(config, require_project=True)
