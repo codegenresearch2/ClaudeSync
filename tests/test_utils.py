@@ -39,7 +39,7 @@ class TestUtils(unittest.TestCase):
                 f.write("Content of file3")
 
             # Create VCS directories
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
 
             # Create a test~ file
