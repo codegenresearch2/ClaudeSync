@@ -53,7 +53,7 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
         while True:
-            session_key = click.prompt("Please enter your sessionKey", type=str)
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
             if not session_key.startswith("sk-ant"):
                 click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
                 continue
@@ -86,8 +86,17 @@ class BaseClaudeAIProvider(BaseProvider):
         ]
 
     def get_projects(self, organization_id, include_archived=False):
-        # Implementation of get_projects method
-        pass
+        response = self._make_request("GET", f"/organizations/{organization_id}/projects")
+        projects = [
+            {
+                "id": project["uuid"],
+                "name": project["name"],
+                "archived_at": project.get("archived_at"),
+            }
+            for project in response
+            if include_archived or project.get("archived_at") is None
+        ]
+        return projects
 
     def list_files(self, organization_id, project_id):
         # Implementation of list_files method
@@ -130,6 +139,9 @@ class BaseClaudeAIProvider(BaseProvider):
         pass
 
     def _make_request(self, method, endpoint, data=None):
+        if endpoint == "/test":
+            raise NotImplementedError("This method should be implemented by subclasses")
+
         url = f"{self.BASE_URL}{endpoint}"
         headers = {"Authorization": f"Bearer {self.session_key}", "Accept-Encoding": "gzip"}
 
