@@ -5,21 +5,21 @@ from claudesync.exceptions import ProviderError
 
 logger = logging.getLogger(__name__)
 
-def retry_on_403(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        max_retries = 3
-        retry_delay = 1
-        for attempt in range(max_retries):
-            try:
-                return func(*args, **kwargs)
-            except ProviderError as e:
-                if "403 Forbidden" in str(e) and attempt < max_retries - 1:
-                    logger.warning(f"Received 403 error. Retrying in {retry_delay} seconds... (attempt {attempt + 2})")
-                    time.sleep(retry_delay)
-                else:
-                    raise
-    return wrapper
+def retry_on_403(max_retries=3, retry_delay=1):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except ProviderError as e:
+                    if "403 Forbidden" in str(e) and attempt < max_retries - 1:
+                        logger.warning(f"Received 403 error. Retrying in {retry_delay} seconds... (attempt {attempt + 2} of {max_retries})")
+                        time.sleep(retry_delay)
+                    else:
+                        raise
+        return wrapper
+    return decorator
 
 class SyncManager:
     def __init__(self, provider, config):
@@ -33,8 +33,18 @@ class SyncManager:
         self.max_retries = 3  # Maximum number of retries for 403 errors
         self.retry_delay = 1  # Delay between retries in seconds
 
-    @retry_on_403
+    @retry_on_403()
     def sync(self, local_files, remote_files):
+        """
+        Orchestrates the synchronization process between local and remote files.
+
+        Args:
+            local_files (dict): Dictionary of local file names and their corresponding checksums.
+            remote_files (list): List of dictionaries representing remote files.
+
+        Returns:
+            None
+        """
         remote_files_to_delete = set(rf["file_name"] for rf in remote_files)
         synced_files = set()
 
@@ -67,7 +77,7 @@ class SyncManager:
 
         self.prune_remote_files(remote_files, remote_files_to_delete)
 
-    @retry_on_403
+    @retry_on_403()
     def update_existing_file(
         self,
         local_file,
@@ -76,6 +86,19 @@ class SyncManager:
         remote_files_to_delete,
         synced_files,
     ):
+        """
+        Updates an existing file on the remote if it has changed locally.
+
+        Args:
+            local_file (str): Name of the local file.
+            local_checksum (str): MD5 checksum of the local file content.
+            remote_file (dict): Dictionary representing the remote file.
+            remote_files_to_delete (set): Set of remote file names to be considered for deletion.
+            synced_files (set): Set of file names that have been synchronized.
+
+        Returns:
+            None
+        """
         remote_checksum = compute_md5_hash(remote_file["content"])
         if local_checksum != remote_checksum:
             logger.debug(f"Updating {local_file} on remote...")
@@ -101,8 +124,18 @@ class SyncManager:
             synced_files.add(local_file)
         remote_files_to_delete.remove(local_file)
 
-    @retry_on_403
+    @retry_on_403()
     def upload_new_file(self, local_file, synced_files):
+        """
+        Uploads a new file to the remote project.
+
+        Args:
+            local_file (str): Name of the local file to be uploaded.
+            synced_files (set): Set of file names that have been synchronized.
+
+        Returns:
+            None
+        """
         logger.debug(f"Uploading new file {local_file} to remote...")
         with open(
             os.path.join(self.local_path, local_file), "r", encoding="utf-8"
@@ -117,6 +150,16 @@ class SyncManager:
         synced_files.add(local_file)
 
     def update_local_timestamps(self, remote_files, synced_files):
+        """
+        Updates local file timestamps to match the remote timestamps.
+
+        Args:
+            remote_files (list): List of dictionaries representing remote files.
+            synced_files (set): Set of file names that have been synchronized.
+
+        Returns:
+            None
+        """
         for remote_file in remote_files:
             if remote_file["file_name"] in synced_files:
                 local_file_path = os.path.join(
@@ -130,6 +173,17 @@ class SyncManager:
                     logger.debug(f"Updated timestamp on local file {local_file_path}")
 
     def sync_remote_to_local(self, remote_file, remote_files_to_delete, synced_files):
+        """
+        Synchronizes a remote file to the local project (two-way sync).
+
+        Args:
+            remote_file (dict): Dictionary representing the remote file.
+            remote_files_to_delete (set): Set of remote file names to be considered for deletion.
+            synced_files (set): Set of file names that have been synchronized.
+
+        Returns:
+            None
+        """
         local_file_path = os.path.join(self.local_path, remote_file["file_name"])
         if os.path.exists(local_file_path):
             self.update_existing_local_file(
@@ -143,6 +197,18 @@ class SyncManager:
     def update_existing_local_file(
         self, local_file_path, remote_file, remote_files_to_delete, synced_files
     ):
+        """
+        Updates an existing local file if the remote version is newer.
+
+        Args:
+            local_file_path (str): Path to the local file.
+            remote_file (dict): Dictionary representing the remote file.
+            remote_files_to_delete (set): Set of remote file names to be considered for deletion.
+            synced_files (set): Set of file names that have been synchronized.
+
+        Returns:
+            None
+        """
         local_mtime = datetime.fromtimestamp(
             os.path.getmtime(local_file_path), tz=timezone.utc
         )
@@ -162,6 +228,18 @@ class SyncManager:
     def create_new_local_file(
         self, local_file_path, remote_file, remote_files_to_delete, synced_files
     ):
+        """
+        Creates a new local file from a remote file.
+
+        Args:
+            local_file_path (str): Path to the new local file.
+            remote_file (dict): Dictionary representing the remote file.
+            remote_files_to_delete (set): Set of remote file names to be considered for deletion.
+            synced_files (set): Set of file names that have been synchronized.
+
+        Returns:
+            None
+        """
         logger.debug(
             f"Creating new local file {remote_file['file_name']} from remote..."
         )
@@ -176,6 +254,16 @@ class SyncManager:
             remote_files_to_delete.remove(remote_file["file_name"])
 
     def prune_remote_files(self, remote_files, remote_files_to_delete):
+        """
+        Deletes remote files that no longer exist locally.
+
+        Args:
+            remote_files (list): List of dictionaries representing remote files.
+            remote_files_to_delete (set): Set of remote file names to be deleted.
+
+        Returns:
+            None
+        """
         if not self.config.get("prune_remote_files"):
             logger.debug("Remote pruning is not enabled.")
             return
@@ -183,8 +271,18 @@ class SyncManager:
         for file_to_delete in list(remote_files_to_delete):
             self.delete_remote_files(file_to_delete, remote_files)
 
-    @retry_on_403
+    @retry_on_403()
     def delete_remote_files(self, file_to_delete, remote_files):
+        """
+        Deletes a file from the remote project that no longer exists locally.
+
+        Args:
+            file_to_delete (str): Name of the remote file to be deleted.
+            remote_files (list): List of dictionaries representing remote files.
+
+        Returns:
+            None
+        """
         logger.debug(f"Deleting {file_to_delete} from remote...")
         remote_file = next(
             rf for rf in remote_files if rf["file_name"] == file_to_delete
