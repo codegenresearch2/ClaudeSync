@@ -136,8 +136,6 @@ def get_local_files(local_path):
         rel_root = "" if rel_root == "." else rel_root
 
         for filename in filenames:
-            if filename == ".gitignore":
-                continue
             rel_path = os.path.join(rel_root, filename)
             full_path = os.path.join(root, filename)
 
