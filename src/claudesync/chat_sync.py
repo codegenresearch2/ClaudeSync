@@ -10,13 +10,14 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
-def save_artifacts(chat_folder, artifacts):
+def save_artifacts(chat_folder, artifacts, message_context):
     """
     Save artifacts to the specified chat folder.
 
     Args:
         chat_folder (str): The folder where the artifacts will be saved.
         artifacts (list): A list of dictionaries containing artifact information.
+        message_context (dict): The context of the message containing the artifacts.
     """
     artifact_folder = os.path.join(chat_folder, "artifacts")
     os.makedirs(artifact_folder, exist_ok=True)
@@ -27,9 +28,10 @@ def save_artifacts(chat_folder, artifacts):
         )
         with open(artifact_file, "w") as f:
             f.write(artifact["content"])
+    logger.info(f"Saved {len(artifacts)} artifacts in message {message_context['message_uuid']}")
 
 
-def sync_chat(provider, config, chat, chat_destination):
+def sync_chat(provider, config, chat, active_project_id, organization_id, sync_all):
     """
     Synchronize a single chat and its artifacts.
 
@@ -37,9 +39,17 @@ def sync_chat(provider, config, chat, chat_destination):
         provider: The API provider instance.
         config: The configuration manager instance.
         chat (dict): The chat metadata.
-        chat_destination (str): The destination folder for the chat.
+        active_project_id (str): The ID of the active project.
+        organization_id (str): The ID of the organization.
+        sync_all (bool): If True, sync all chats regardless of project. If False, only sync chats for the active project.
     """
-    chat_folder = os.path.join(chat_destination, chat["uuid"])
+    chat_folder = os.path.join(config.get("local_path"), "claude_chats", chat["uuid"])
+    
+    # Check if the chat folder already exists
+    if os.path.exists(chat_folder):
+        logger.debug(f"Chat folder {chat_folder} already exists, skipping.")
+        return
+    
     os.makedirs(chat_folder, exist_ok=True)
 
     # Save chat metadata
@@ -48,14 +58,15 @@ def sync_chat(provider, config, chat, chat_destination):
 
     # Fetch full chat conversation
     logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
-    full_chat = provider.get_chat_conversation(chat["organization_id"], chat["uuid"])
+    full_chat = provider.get_chat_conversation(organization_id, chat["uuid"])
 
     # Process each message in the chat
     for message in full_chat["chat_messages"]:
         # Save the message
         message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-        with open(message_file, "w") as f:
-            json.dump(message, f, indent=2)
+        if not os.path.exists(message_file):
+            with open(message_file, "w") as f:
+                json.dump(message, f, indent=2)
 
         # Handle artifacts in assistant messages
         if message["sender"] == "assistant":
@@ -64,7 +75,7 @@ def sync_chat(provider, config, chat, chat_destination):
                 logger.info(
                     f"Found {len(artifacts)} artifacts in message {message['uuid']}"
                 )
-                save_artifacts(chat_folder, artifacts)
+                save_artifacts(chat_folder, artifacts, {"message_uuid": message["uuid"]})
 
 
 def sync_chats(provider, config, sync_all=False):
@@ -88,9 +99,6 @@ def sync_chats(provider, config, sync_all=False):
             "Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it."
         )
 
-    chat_destination = os.path.join(local_path, "claude_chats")
-    os.makedirs(chat_destination, exist_ok=True)
-
     organization_id = config.get("active_organization_id")
     if not organization_id:
         raise ConfigurationError(
@@ -103,6 +111,9 @@ def sync_chats(provider, config, sync_all=False):
             "No active project set. Please select a project or use the -a flag to sync all chats."
         )
 
+    chat_destination = os.path.join(local_path, "claude_chats")
+    os.makedirs(chat_destination, exist_ok=True)
+
     logger.debug(f"Fetching chats for organization {organization_id}")
     chats = provider.get_chat_conversations(organization_id)
     logger.debug(f"Found {len(chats)} chats")
@@ -112,7 +123,7 @@ def sync_chats(provider, config, sync_all=False):
             chat.get("project") and chat["project"].get("uuid") == active_project_id
         ):
             logger.info(f"Processing chat {chat['uuid']}")
-            sync_chat(provider, config, chat, chat_destination)
+            sync_chat(provider, config, chat, active_project_id, organization_id, sync_all)
         else:
             logger.debug(
                 f"Skipping chat {chat['uuid']} as it doesn't belong to the active project"
