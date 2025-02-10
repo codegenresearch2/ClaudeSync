@@ -45,13 +45,17 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
     @patch("claudesync.providers.base_claude_ai.click.echo")
     @patch("claudesync.providers.base_claude_ai.click.prompt")
     def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
-        mock_prompt.side_effect = ["invalid_key"]
+        mock_prompt.side_effect = ["invalid_key", "sk-ant-test123", "Tue, 03 Sep 2099 05:49:08 GMT"]
+        self.provider.get_organizations = MagicMock(
+            return_value=[{"id": "org1", "name": "Test Org"}]
+        )
         mock_config_manager.return_value = MagicMock()
 
         with self.assertRaises(Exception) as context:
             self.provider.login()
 
         self.assertTrue("Invalid session key" in str(context.exception))
+        self.assertEqual(mock_prompt.call_count, 3)
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
@@ -113,6 +117,10 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
 
             # Assert that the error was logged
             self.assertTrue("Error making request" in str(context.exception))
+
+    def test_make_request_not_implemented(self):
+        with self.assertRaises(NotImplementedError):
+            self.provider._make_request("GET", "/test")
 
 if __name__ == "__main__":
     unittest.main()
