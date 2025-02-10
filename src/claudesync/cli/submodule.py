@@ -65,22 +65,33 @@ def create(config):
 
     click.echo(f"Detected {len(submodules)} submodule(s). Creating projects for each:")
 
+    all_remote_projects = provider.get_projects(active_organization_id, include_archived=False)
+
     for i, submodule in enumerate(submodules, 1):
         submodule_name = os.path.basename(submodule)
         new_project_name = f"{active_project_name}-SubModule-{submodule_name}"
         description = f"Submodule '{submodule_name}' for project '{active_project_name}' (ID: {active_project_id})"
 
-        try:
-            new_project = provider.create_project(
-                active_organization_id, new_project_name, description
-            )
-            click.echo(
-                f"{i}. Created project '{new_project_name}' (ID: {new_project['uuid']}) for submodule '{submodule_name}'"
-            )
-        except ProviderError as e:
-            click.echo(
-                f"Failed to create project for submodule '{submodule_name}': {str(e)}"
-            )
+        # Check if the submodule project already exists
+        existing_project = next(
+            (proj for proj in all_remote_projects if proj["name"] == new_project_name),
+            None
+        )
+
+        if existing_project:
+            click.echo(f"{i}. Submodule project '{new_project_name}' already exists. Skipping creation.")
+        else:
+            try:
+                new_project = provider.create_project(
+                    active_organization_id, new_project_name, description
+                )
+                click.echo(
+                    f"{i}. Created project '{new_project_name}' (ID: {new_project['uuid']}) for submodule '{submodule_name}'"
+                )
+            except ProviderError as e:
+                click.echo(
+                    f"Failed to create project for submodule '{submodule_name}': {str(e)}"
+                )
 
     click.echo(
         "\nSubmodule projects created successfully. You can now select and sync these projects individually."
