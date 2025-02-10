@@ -9,7 +9,6 @@ from ..utils import handle_errors, validate_and_get_provider
 from ..syncmanager import SyncManager
 from ..chat_sync import sync_chats
 
-
 @click.command()
 @click.pass_obj
 @handle_errors
@@ -30,7 +29,6 @@ def ls(config):
                 f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})"
             )
 
-
 @click.command()
 @click.pass_obj
 @handle_errors
@@ -45,11 +43,11 @@ def sync(config):
     )
     local_files = get_local_files(config.get("local_path"))
     sync_manager.sync(local_files, remote_files)
+    click.echo("Project sync completed successfully.")
 
     # Sync chats
     sync_chats(provider, config)
-    click.echo("Project and chat sync completed successfully.")
-
+    click.echo("Chat sync completed successfully.")
 
 def validate_local_path(local_path):
     if not local_path:
@@ -61,7 +59,6 @@ def validate_local_path(local_path):
         click.echo(f"The configured local path does not exist: {local_path}")
         click.echo("Please update the local path by selecting or creating a project.")
         sys.exit(1)
-
 
 @click.command()
 @click.pass_obj
@@ -83,13 +80,11 @@ def schedule(config, interval):
     else:
         setup_unix_cron(claudesync_path, interval)
 
-
 def setup_windows_task(claudesync_path, interval):
     click.echo("Windows Task Scheduler setup:")
     command = f'schtasks /create /tn "ClaudeSync" /tr "{claudesync_path} sync" /sc minute /mo {interval}'
     click.echo(f"Run this command to create the task:\n{command}")
     click.echo('\nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
-
 
 def setup_unix_cron(claudesync_path, interval):
     cron = CronTab(user=True)
