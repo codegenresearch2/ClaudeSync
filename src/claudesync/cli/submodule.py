@@ -48,6 +48,7 @@ def create(config):
     """
     provider = validate_and_get_provider(config, require_project=True)
     active_organization_id = config.get("active_organization_id")
+    active_project_id = config.get("active_project_id")
     active_project_name = config.get("active_project_name")
     local_path = config.get("local_path")
 
@@ -75,7 +76,7 @@ def create(config):
     for i, submodule in enumerate(submodules, 1):
         submodule_name = os.path.basename(submodule)
         new_project_name = f"{active_project_name}-SubModule-{submodule_name}"
-        description = f"Submodule '{submodule_name}' for project '{active_project_name}'"
+        description = f"Submodule '{submodule_name}' for project '{active_project_name}' (ID: {active_project_id})"
 
         # Check if a project for this submodule already exists
         existing_project = next((p for p in all_remote_projects if p["name"] == new_project_name), None)
@@ -96,5 +97,5 @@ def create(config):
                 )
 
     click.echo(
-        "\nSubmodule projects created successfully. You can now select and sync these projects individually."
+        "\nSubmodule projects creation process completed successfully. You can now select and sync these projects individually."
     )
