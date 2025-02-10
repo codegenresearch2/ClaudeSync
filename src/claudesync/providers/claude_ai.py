@@ -64,12 +64,11 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
 This revised code snippet addresses the feedback from the oracle by:
 
-1. Logging the request method, URL, headers, and cookies before making the request to provide better debugging and context.
+1. Logging the request method, URL, headers, and cookies before making the request to provide better context for debugging.
 2. Constructing a cookie string from the session key and adding it to the request headers.
 3. Streamlining the way headers are added to the `urllib.request.Request` object.
 4. Logging the request data before encoding it.
 5. Logging the response status code and headers after making the request.
 6. Properly handling gzip-encoded responses by checking the response headers for content encoding and decompressing the content accordingly.
-7. Encapsulating HTTP error handling logic in a separate method for cleaner code.
-8. Logging any relevant information about the response content when handling JSON decoding errors.
-9. Truncating the response content for logging to avoid overwhelming the logs, but ensuring enough information is captured for debugging.
+7. Encapsulating HTTP error handling logic in a separate method for cleaner code organization.
+8. Logging any relevant information about the response content when handling JSON decoding errors, but being cautious about the length of the logged content to avoid overwhelming the logs.
