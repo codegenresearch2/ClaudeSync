@@ -79,7 +79,7 @@ class SyncManager:
                     pbar.update(1)
 
         with tqdm(total=len(remote_files_to_delete), desc="Deleting remote files", leave=False) as pbar:
-            for file_to_delete in remote_files_to_delete:
+            for file_to_delete in list(remote_files_to_delete):
                 self.delete_remote_files(file_to_delete, remote_files)
                 pbar.update(1)
 
