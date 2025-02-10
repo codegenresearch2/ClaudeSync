@@ -279,7 +279,7 @@ class SyncManager:
             None
         """
         if not self.config.get("prune_remote_files"):
-            click.echo("Remote pruning is not enabled.")
+            logger.debug("Remote pruning is not enabled.")
             return
 
         for file_to_delete in list(remote_files_to_delete):
