@@ -17,8 +17,6 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
         cookies = {
             "sessionKey": self.session_key,
-            "CH-prefers-color-scheme": "dark",
-            "anthropic-consent-preferences": '{"analytics":true,"marketing":true}',
         }
 
         try:
@@ -26,15 +24,13 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             self.logger.debug(f"Headers: {headers}")
             self.logger.debug(f"Cookies: {cookies}")
             if data:
-                self.logger.debug(f"Request data: {data}")
                 data = json.dumps(data).encode("utf-8")
+                self.logger.debug(f"Request data: {data}")
 
-            req = urllib.request.Request(url, method=method)
+            req = urllib.request.Request(url, data=data, method=method)
             for key, value in headers.items():
                 req.add_header(key, value)
             req.add_header("Cookie", "; ".join([f"{k}={v}" for k, v in cookies.items()]))
-            if data:
-                req.data = data
 
             with urllib.request.urlopen(req) as response:
                 self.logger.debug(f"Response status code: {response.status}")
@@ -55,15 +51,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
                 return json.loads(content_str)
 
-        except urllib.error.URLError as e:
+        except urllib.error.HTTPError as e:
             self.logger.error(f"Request failed: {str(e)}")
-            if hasattr(e, "code"):
-                self.logger.error(f"Response status code: {e.code}")
-            if hasattr(e, "headers"):
-                self.logger.error(f"Response headers: {e.headers}")
-            if hasattr(e, "read"):
-                self.logger.error(f"Response content: {e.read().decode('utf-8')}")
-            raise ProviderError(f"API request failed: {str(e)}")
+            self.logger.error(f"Response status code: {e.code}")
+            self.logger.error(f"Response headers: {e.headers}")
+            self.logger.error(f"Response content: {e.read().decode('utf-8')}")
+            raise ProviderError(f"API request failed: {e.code} - {e.read().decode('utf-8')}")
         except json.JSONDecodeError as json_err:
             self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
             self.logger.error(f"Response content: {content_str}")
@@ -83,4 +76,4 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         elif status_code >= 400:
             error_msg = f"API request failed: {status_code} - {content}"
             self.logger.error(error_msg)
-            raise ProviderError(f"API request failed: {status_code} - {content}")
+            raise ProviderError(error_msg)
