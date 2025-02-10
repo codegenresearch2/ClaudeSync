@@ -44,12 +44,12 @@ def ls(config):
 def create(config):
     """Create new projects for each detected submodule.
     
-    This command will create new projects for each submodule in the current project that does not already exist remotely.
+    This command creates projects for each submodule in the current project that does not already exist remotely.
     """
     provider = validate_and_get_provider(config, require_project=True)
     active_organization_id = config.get("active_organization_id")
-    active_project_name = config.get("active_project_name")
     active_project_id = config.get("active_project_id")
+    active_project_name = config.get("active_project_name")
     local_path = config.get("local_path")
 
     if not local_path:
