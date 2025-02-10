@@ -1,11 +1,7 @@
 import os
-
 import click
-from tqdm import tqdm
-
 from claudesync.exceptions import ProviderError
-from .submodule import submodule
-from ..syncmanager import SyncManager, retry_on_403
+from ..syncmanager import SyncManager
 from ..utils import (
     handle_errors,
     validate_and_get_provider,
@@ -13,6 +9,18 @@ from ..utils import (
     detect_submodules,
     validate_and_store_local_path,
 )
+from functools import wraps
+
+
+def log_errors(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            click.echo(f"An error occurred: {str(e)}")
+            raise
+    return wrapper
 
 
 @click.group()
@@ -23,7 +31,7 @@ def project():
 
 @project.command()
 @click.pass_obj
-@handle_errors
+@log_errors
 def create(config):
     """Create a new project in the active organization."""
     provider = validate_and_get_provider(config)
@@ -55,7 +63,7 @@ def create(config):
 
 @project.command()
 @click.pass_obj
-@handle_errors
+@log_errors
 def archive(config):
     """Archive an existing project."""
     provider = validate_and_get_provider(config)
@@ -89,7 +97,7 @@ def archive(config):
     help="Include submodule projects in the selection",
 )
 @click.pass_context
-@handle_errors
+@log_errors
 def select(ctx, show_all):
     """Set the active project for syncing."""
     config = ctx.obj
@@ -142,7 +150,7 @@ def select(ctx, show_all):
     help="Include archived projects in the list",
 )
 @click.pass_obj
-@handle_errors
+@log_errors
 def ls(config, show_all):
     """List all projects in the active organization."""
     provider = validate_and_get_provider(config)
@@ -160,7 +168,7 @@ def ls(config, show_all):
 @project.command()
 @click.option("--category", help="Specify the file category to sync")
 @click.pass_obj
-@handle_errors
+@log_errors
 def sync(config, category):
     """Synchronize the project files, including submodules if they exist remotely."""
     provider = validate_and_get_provider(config, require_project=True)
@@ -235,61 +243,6 @@ def sync(config, category):
             )
 
     click.echo("Project sync completed successfully, including available submodules.")
-
-
-@project.command()
-@click.option(
-    "-a", "--include-archived", is_flag=True, help="Include archived projects"
-)
-@click.option("-y", "--yes", is_flag=True, help="Skip confirmation prompt")
-@click.pass_obj
-@handle_errors
-def truncate(config, include_archived, yes):
-    """Truncate all projects."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get("active_organization_id")
-
-    projects = provider.get_projects(
-        active_organization_id, include_archived=include_archived
-    )
-
-    if not projects:
-        click.echo("No projects found.")
-        return
-
-    if not yes:
-        click.echo("This will delete ALL files from the following projects:")
-        for project in projects:
-            status = " (Archived)" if project.get("archived_at") else ""
-            click.echo(f"  - {project['name']} (ID: {project['id']}){status}")
-        if not click.confirm(
-            "Are you sure you want to continue? This may take some time."
-        ):
-            click.echo("Operation cancelled.")
-            return
-
-    with tqdm(total=len(projects), desc="Deleting files from projects") as pbar:
-        for project in projects:
-            delete_files_from_project(
-                provider, active_organization_id, project["id"], project["name"]
-            )
-            pbar.update(1)
-
-    click.echo("All files have been deleted from all projects.")
-
-
-@retry_on_403()
-def delete_files_from_project(provider, organization_id, project_id, project_name):
-    try:
-        files = provider.list_files(organization_id, project_id)
-        with tqdm(
-            total=len(files), desc=f"Deleting files from {project_name}", leave=False
-        ) as file_pbar:
-            for file in files:
-                provider.delete_file(organization_id, project_id, file["uuid"])
-                file_pbar.update(1)
-    except ProviderError as e:
-        click.echo(f"Error deleting files from project {project_name}: {str(e)}")
 
 
 project.add_command(submodule)
