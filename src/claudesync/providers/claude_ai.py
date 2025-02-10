@@ -11,8 +11,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-            "Accept-Encoding": "gzip",
             "Content-Type": "application/json",
+            "Accept-Encoding": "gzip",
         }
 
         cookies = {
@@ -27,10 +27,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 self.logger.debug(f"Request data: {data}")
                 data = json.dumps(data).encode("utf-8")
 
-            req = urllib.request.Request(url, data=data, method=method)
+            req = urllib.request.Request(url, method=method)
             for key, value in headers.items():
                 req.add_header(key, value)
             req.add_header("Cookie", "; ".join([f"{k}={v}" for k, v in cookies.items()]))
+            if data:
+                req.data = data
 
             with urllib.request.urlopen(req) as response:
                 self.logger.debug(f"Response status code: {response.status}")
@@ -41,15 +43,15 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 else:
                     content = response.read()
 
-                content = content.decode("utf-8")
-                self.logger.debug(f"Response content: {content[:1000]}...")
+                content_str = content.decode("utf-8")
+                self.logger.debug(f"Response content: {content_str[:1000]}...")
 
-                self._handle_http_error(response.status, content)
+                self._handle_http_error(response.status, content_str)
 
-                if not content:
+                if not content_str:
                     return None
 
-                return json.loads(content)
+                return json.loads(content_str)
 
         except urllib.error.URLError as e:
             self.logger.error(f"Request failed: {str(e)}")
@@ -62,7 +64,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             raise ProviderError(f"API request failed: {str(e)}")
         except json.JSONDecodeError as json_err:
             self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
-            self.logger.error(f"Response content: {content}")
+            self.logger.error(f"Response content: {content_str}")
             raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
 
     def _handle_http_error(self, status_code, content):
@@ -75,8 +77,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 "claudesync api login claude.ai-curl"
             )
             self.logger.error(error_msg)
-            raise ProviderError(f"API request failed: {status_code} {error_msg}")
+            raise ProviderError(f"API request failed: 403 Forbidden error - {error_msg}")
         elif status_code >= 400:
-            error_msg = f"API request failed: {status_code} {content}"
+            error_msg = f"API request failed: {status_code} - {content}"
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
