@@ -23,6 +23,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "sessionKey": self.session_key,
         }
 
+        # Log cookies for debugging
+        self.logger.debug(f"Cookies: {cookies}")
+
         # Construct a single cookie string
         cookie_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
         headers["Cookie"] = cookie_header
@@ -39,6 +42,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             # Add data if present
             if data:
                 json_data = json.dumps(data).encode("utf-8")
+                req.add_header("Content-Length", str(len(json_data)))
                 req.data = json_data
 
             # Make the request
@@ -76,11 +80,15 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
         try:
-            content = e.read().decode("utf-8")
-            self.logger.debug(f"Response content: {content}")
+            content = e.read()
+            content_str = content.decode("utf-8")
+            self.logger.debug(f"Response content: {content_str}")
         except UnicodeDecodeError:
-            content = e.read().decode("iso-8859-1")
-            self.logger.debug(f"Response content (iso-8859-1): {content}")
+            try:
+                content_str = content.decode("iso-8859-1")
+                self.logger.debug(f"Response content (iso-8859-1): {content_str}")
+            except UnicodeDecodeError:
+                self.logger.debug(f"Response content could not be decoded.")
 
         error_msg = f"HTTP {e.code} error: {e.reason}"
         if e.code == 403:
@@ -93,7 +101,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             )
         elif e.code == 429:
             try:
-                error_data = json.loads(e.read().decode("utf-8"))
+                error_data = json.loads(content.decode("utf-8"))
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
