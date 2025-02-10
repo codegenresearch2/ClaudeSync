@@ -11,10 +11,11 @@ from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
 from ..config_manager import ConfigManager
 
-def retry_with_backoff(max_retries=3, delay=1):
+def retry_with_backoff(max_retries=3, initial_delay=1):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            delay = initial_delay
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
@@ -33,23 +34,31 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         super().__init__(session_key, session_key_expiry)
         self.config = ConfigManager()
 
-    @retry_with_backoff(max_retries=5, delay=2)
+    @retry_with_backoff(max_retries=5, initial_delay=2)
     def _make_request(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
             "Accept-Encoding": "gzip",
-            "Cookie": f"sessionKey={self.session_key}",
+        }
+        cookies = {
+            "sessionKey": self.session_key,
         }
 
-        req = urllib.request.Request(url, method=method, headers=headers)
+        req = urllib.request.Request(url, method=method)
+        for key, value in headers.items():
+            req.add_header(key, value)
+        cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+        req.add_header("Cookie", cookie_string)
+
         if data:
             req.data = json.dumps(data).encode("utf-8")
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
+            self.logger.debug(f"Cookies: {cookies}")
             if data:
                 self.logger.debug(f"Request data: {data}")
 
@@ -62,7 +71,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 else:
                     content = response.read()
 
-                content_str = content.decode("utf-8")
+                try:
+                    content_str = content.decode("utf-8")
+                except UnicodeDecodeError:
+                    self.logger.error(f"Failed to decode response content as UTF-8")
+                    raise ProviderError("Invalid encoding in API response")
+
                 self.logger.debug(f"Response content: {content_str[:1000]}...")
 
                 if not content:
