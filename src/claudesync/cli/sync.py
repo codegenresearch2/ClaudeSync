@@ -54,6 +54,7 @@ def sync(config):
     # Sync chats
     sync_chats(provider, config)
     click.echo("Chat sync completed successfully.")
+    click.echo("Both projects and chats have been synchronized successfully.")
 
 
 def validate_local_path(local_path):
