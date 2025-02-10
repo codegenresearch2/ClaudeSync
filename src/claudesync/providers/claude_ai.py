@@ -15,14 +15,10 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "Accept-Encoding": "gzip",
         }
 
-        cookies = {
-            "sessionKey": self.session_key,
-        }
-
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
+            self.logger.debug(f"Cookies: sessionKey={self.session_key}")
             if data:
                 data = json.dumps(data).encode("utf-8")
                 self.logger.debug(f"Request data: {data}")
@@ -30,7 +26,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             req = urllib.request.Request(url, data=data, method=method)
             for key, value in headers.items():
                 req.add_header(key, value)
-            req.add_header("Cookie", "; ".join([f"{k}={v}" for k, v in cookies.items()]))
+            req.add_header("Cookie", f"sessionKey={self.session_key}")
 
             with urllib.request.urlopen(req) as response:
                 self.logger.debug(f"Response status code: {response.status}")
@@ -52,11 +48,10 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 return json.loads(content_str)
 
         except urllib.error.HTTPError as e:
+            self.handle_http_error(e.code, e.read().decode("utf-8"))
+        except urllib.error.URLError as e:
             self.logger.error(f"Request failed: {str(e)}")
-            self.logger.error(f"Response status code: {e.code}")
-            self.logger.error(f"Response headers: {e.headers}")
-            self.logger.error(f"Response content: {e.read().decode('utf-8')}")
-            raise ProviderError(f"API request failed: {e.code} - {e.read().decode('utf-8')}")
+            raise ProviderError(f"API request failed: URL error - {str(e)}")
         except json.JSONDecodeError as json_err:
             self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
             self.logger.error(f"Response content: {content_str}")
