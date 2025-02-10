@@ -68,7 +68,6 @@ def create(config):
 
     # Fetch all remote projects
     all_remote_projects = provider.get_projects(active_organization_id, include_archived=False)
-    remote_project_names = {project["name"] for project in all_remote_projects}
 
     click.echo(f"Detected {len(submodules)} submodule(s). Creating projects for each:")
 
@@ -77,7 +76,8 @@ def create(config):
         new_project_name = f"{active_project_name}-SubModule-{submodule_name}"
 
         # Check if the project already exists remotely
-        if new_project_name in remote_project_names:
+        existing_project = next((project for project in all_remote_projects if project["name"] == new_project_name), None)
+        if existing_project:
             click.echo(f"{i}. Project '{new_project_name}' for submodule '{submodule_name}' already exists remotely. Skipping creation.")
             continue
 
