@@ -57,6 +57,9 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
                 f.write("*.log\n/build\ntarget")
 
+            with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
+                f.write("*.log\n/build/\n")
+
             local_files = get_local_files(tmpdir)
             print(local_files)
 
