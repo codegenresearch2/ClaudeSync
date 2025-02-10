@@ -17,6 +17,11 @@ class SyncManager:
         Args:
             provider (Provider): The provider instance to interact with the remote storage.
             config (dict): Configuration dictionary containing sync settings.
+                - active_organization_id (str): ID of the active organization.
+                - active_project_id (str): ID of the active project.
+                - local_path (str): Path to the local directory to be synchronized.
+                - upload_delay (float, optional): Delay between upload operations in seconds. Defaults to 0.5.
+                - two_way_sync (bool, optional): Flag to enable two-way synchronization. Defaults to False.
         """
         self.provider = provider
         self.config = config
@@ -96,7 +101,7 @@ class SyncManager:
         """
         remote_checksum = compute_md5_hash(remote_file["content"])
         if local_checksum != remote_checksum:
-            logger.debug(f"Updating remote file: {remote_file['file_name']}")
+            logger.debug(f"Updating {local_file} on remote...")
             with tqdm(total=2, desc=f"Updating {local_file}", leave=False) as pbar:
                 self.provider.delete_file(
                     self.active_organization_id,
@@ -129,7 +134,7 @@ class SyncManager:
             local_file (str): Name of the local file to be uploaded.
             synced_files (set): Set of file names that have been synchronized.
         """
-        logger.debug(f"Uploading new file: {local_file}")
+        logger.debug(f"Uploading new file {local_file} to remote...")
         with open(
             os.path.join(self.local_path, local_file), "r", encoding="utf-8"
         ) as file:
@@ -164,7 +169,7 @@ class SyncManager:
                     ).timestamp()
                     os.utime(local_file_path, (remote_timestamp, remote_timestamp))
                     logger.debug(
-                        f"Updated local file timestamp: {remote_file['file_name']}"
+                        f"Updated local file timestamp for {remote_file['file_name']}"
                     )
 
     def sync_remote_to_local(self, remote_file, remote_files_to_delete, synced_files):
@@ -211,7 +216,7 @@ class SyncManager:
             remote_file["created_at"].replace("Z", "+00:00")
         )
         if remote_mtime > local_mtime:
-            logger.debug(f"Updating local file from remote: {remote_file['file_name']}")
+            logger.debug(f"Updating local file {remote_file['file_name']} from remote...")
             with open(local_file_path, "w", encoding="utf-8") as file:
                 file.write(remote_file["content"])
             synced_files.add(remote_file["file_name"])
@@ -232,11 +237,9 @@ class SyncManager:
             remote_files_to_delete (set): Set of remote file names to be considered for deletion.
             synced_files (set): Set of file names that have been synchronized.
         """
-        logger.debug(f"Creating new local file from remote: {remote_file['file_name']}")
-        with tqdm(total=1, desc=f"Creating {remote_file['file_name']}", leave=False) as pbar:
-            with open(local_file_path, "w", encoding="utf-8") as file:
-                file.write(remote_file["content"])
-            pbar.update(1)
+        logger.debug(f"Creating new local file {remote_file['file_name']} from remote...")
+        with open(local_file_path, "w", encoding="utf-8") as file:
+            file.write(remote_file["content"])
         synced_files.add(remote_file["file_name"])
         if remote_file["file_name"] in remote_files_to_delete:
             remote_files_to_delete.remove(remote_file["file_name"])
@@ -251,11 +254,13 @@ class SyncManager:
             file_to_delete (str): Name of the remote file to be deleted.
             remote_files (list): List of dictionaries representing remote files.
         """
-        logger.debug(f"Deleting remote file: {file_to_delete}")
+        logger.debug(f"Deleting {file_to_delete} from remote...")
         remote_file = next(
             rf for rf in remote_files if rf["file_name"] == file_to_delete
         )
-        self.provider.delete_file(
-            self.active_organization_id, self.active_project_id, remote_file["uuid"]
-        )
+        with tqdm(total=1, desc=f"Deleting {file_to_delete}", leave=False) as pbar:
+            self.provider.delete_file(
+                self.active_organization_id, self.active_project_id, remote_file["uuid"]
+            )
+            pbar.update(1)
         time.sleep(self.upload_delay)
