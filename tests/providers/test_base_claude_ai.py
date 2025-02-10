@@ -28,9 +28,9 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey", type=str),
+            call("Please enter your sessionKey", type=str, hide_input=True),
             call(
-                "Please enter the expires time for the sessionKey",
+                "Please enter the expires time for the sessionKey (optional)",
                 default=ANY,
                 type=str,
             ),
@@ -43,11 +43,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
     @patch("claudesync.providers.base_claude_ai.click.echo")
     @patch("claudesync.providers.base_claude_ai.click.prompt")
     def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
-        mock_prompt.side_effect = [
-            "invalid_key",
-            "test_session_key",
-            "Tue, 03 Sep 2099 05:49:08 GMT",
-        ]
+        mock_prompt.side_effect = ["invalid_key", "test_session_key", "Tue, 03 Sep 2099 05:49:08 GMT"]
         self.provider.get_organizations = MagicMock(
             return_value=[{"id": "org1", "name": "Test Org"}]
         )
