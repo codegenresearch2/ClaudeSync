@@ -30,6 +30,10 @@ class SyncManager:
         """
         Main synchronization method that orchestrates the sync process.
 
+        This method manages the synchronization between local and remote files. It handles the
+        synchronization from local to remote, updates local timestamps, performs two-way sync if enabled,
+        and deletes remote files that are no longer present locally.
+
         Args:
             local_files (dict): Dictionary of local file names and their corresponding checksums.
             remote_files (list): List of dictionaries representing remote files.
@@ -80,6 +84,9 @@ class SyncManager:
         """
         Update an existing file on the remote if it has changed locally.
 
+        This method compares the local and remote file checksums. If they differ, it deletes the old remote file
+        and uploads the new version from the local file.
+
         Args:
             local_file (str): Name of the local file.
             local_checksum (str): MD5 checksum of the local file content.
@@ -116,6 +123,8 @@ class SyncManager:
         """
         Upload a new file to the remote project.
 
+        This method reads the content of the local file and uploads it to the remote project.
+
         Args:
             local_file (str): Name of the local file to be uploaded.
             synced_files (set): Set of file names that have been synchronized.
@@ -136,6 +145,9 @@ class SyncManager:
     def update_local_timestamps(self, remote_files, synced_files):
         """
         Update local file timestamps to match the remote timestamps.
+
+        This method updates the modification timestamps of local files to match their corresponding
+        remote file timestamps if they have been synchronized.
 
         Args:
             remote_files (list): List of dictionaries representing remote files.
@@ -159,6 +171,9 @@ class SyncManager:
         """
         Synchronize a remote file to the local project (two-way sync).
 
+        This method checks if the remote file exists locally. If it does, it updates the file
+        if the remote version is newer. If it doesn't exist locally, it creates a new local file.
+
         Args:
             remote_file (dict): Dictionary representing the remote file.
             remote_files_to_delete (set): Set of remote file names to be considered for deletion.
@@ -179,6 +194,9 @@ class SyncManager:
     ):
         """
         Update an existing local file if the remote version is newer.
+
+        This method compares the local file's modification time with the remote file's creation time.
+        If the remote file is newer, it updates the local file with the remote content.
 
         Args:
             local_file_path (str): Path to the local file.
@@ -206,6 +224,8 @@ class SyncManager:
         """
         Create a new local file from a remote file.
 
+        This method creates a new local file with the content from the remote file.
+
         Args:
             local_file_path (str): Path to the new local file.
             remote_file (dict): Dictionary representing the remote file.
@@ -224,6 +244,8 @@ class SyncManager:
     def delete_remote_files(self, file_to_delete, remote_files):
         """
         Delete a file from the remote project that no longer exists locally.
+
+        This method deletes a remote file that is not present in the local directory.
 
         Args:
             file_to_delete (str): Name of the remote file to be deleted.
