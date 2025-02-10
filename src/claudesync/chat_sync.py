@@ -84,13 +84,30 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        process_chat(provider, config, chat, chat_destination)
+        if should_process_chat(chat, active_project_id, sync_all):
+            process_chat(provider, config, chat, chat_destination)
+        else:
+            logger.debug(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
+def should_process_chat(chat, active_project_id, sync_all):
+    """
+    Determine if a chat should be processed based on the active project ID and sync_all flag.
+
+    Args:
+        chat: The chat dictionary.
+        active_project_id: The ID of the active project.
+        sync_all: If True, process all chats; otherwise, process only chats belonging to the active project.
+
+    Returns:
+        bool: True if the chat should be processed, False otherwise.
+    """
+    return sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id)
+
 def extract_artifacts(chat_messages):
     """
-    Extract artifacts from the given chat messages.
+    Extract artifacts from the given list of chat messages.
 
     Args:
         chat_messages: List of chat messages.
@@ -100,7 +117,7 @@ def extract_artifacts(chat_messages):
     """
     artifacts = []
     for message in chat_messages:
-        if message["sender"] == "assistant":
+        if message.get("sender") == "assistant":
             artifacts.extend(extract_artifacts_from_text(message["text"]))
     return artifacts
 
