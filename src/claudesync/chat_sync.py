@@ -44,11 +44,11 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        sync_single_chat(provider, config, chat, chat_destination)
+        sync_chat(provider, config, chat, chat_destination)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
-def sync_single_chat(provider, config, chat, chat_destination):
+def sync_chat(provider, config, chat, chat_destination):
     """
     Synchronize a single chat and its artifacts.
 
