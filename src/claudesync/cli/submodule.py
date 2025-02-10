@@ -7,14 +7,8 @@ from ..utils import (
     detect_submodules,
 )
 
-def handle_errors(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except ProviderError as e:
-            click.echo(f"Error in {func.__name__}: {str(e)}")
-    return wrapper
+# Import handle_errors decorator from the correct module
+from ..utils import handle_errors
 
 @click.group()
 def submodule():
@@ -28,7 +22,7 @@ def ls(config):
     """List all detected submodules in the current project."""
     local_path = config.get("local_path")
     if not local_path:
-        click.echo("No local path set for this project. Please select or create a project.")
+        click.echo("No local path set for this project. Please select an existing project or create a new one using 'claudesync project select' or 'claudesync project create'.")
         return
 
     submodule_detect_filenames = config.get("submodule_detect_filenames", [])
@@ -53,23 +47,40 @@ def create(config):
     local_path = config.get("local_path")
 
     if not local_path:
-        click.echo("No local path set for this project. Please select or create a project.")
+        click.echo("No local path set for this project. Please select an existing project or create a new one using 'claudesync project select' or 'claudesync project create'.")
         return
 
     submodule_detect_filenames = config.get("submodule_detect_filenames", [])
     submodules_with_files = detect_submodules(local_path, submodule_detect_filenames)
 
+    # Extract only the submodule paths from the list of tuples
     submodules = [submodule for submodule, _ in submodules_with_files]
 
     if not submodules:
         click.echo("No submodules detected in the current project.")
         return
 
+    # Fetch all remote projects
+    all_remote_projects = provider.get_projects(active_organization_id, include_archived=False)
+
+    # Find remote submodule projects
+    remote_submodule_projects = [
+        project
+        for project in all_remote_projects
+        if project["name"].startswith(f"{active_project_name}-SubModule-")
+    ]
+
     click.echo(f"Detected {len(submodules)} submodule(s). Creating projects for each:")
 
     for i, submodule in enumerate(submodules, 1):
         submodule_name = os.path.basename(submodule)
         new_project_name = f"{active_project_name}-SubModule-{submodule_name}"
+
+        # Check if the project already exists
+        if any(project["name"] == new_project_name for project in remote_submodule_projects):
+            click.echo(f"{i}. Project '{new_project_name}' already exists for submodule '{submodule_name}'")
+            continue
+
         description = f"Submodule '{submodule_name}' for project '{active_project_name}' (ID: {active_project_id})"
 
         try:
@@ -84,4 +95,4 @@ def create(config):
                 f"Failed to create project for submodule '{submodule_name}': {str(e)}"
             )
 
-    click.echo("\nSubmodule projects created successfully.")
+    click.echo("\nSubmodule projects created successfully. You can now select and sync these projects individually.")
