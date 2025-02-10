@@ -1,5 +1,7 @@
 import json
 import urllib.request
+import urllib.error
+import urllib.parse
 import gzip
 from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
@@ -9,28 +11,27 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-            "Origin": "https://claude.ai",
-            "Referer": "https://claude.ai/projects",
-            "Accept": "*/*",
             "Accept-Encoding": "gzip, deflate, zstd",
-            "Accept-Language": "en-US,en;q=0.5",
-            "anthropic-client-sha": "unknown",
-            "anthropic-client-version": "unknown",
-            "Connection": "keep-alive",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "Cookie": f"sessionKey={self.session_key}; CH-prefers-color-scheme=dark; anthropic-consent-preferences={\"analytics\":true,\"marketing\":true}",
+            "Content-Type": "application/json",
+        }
+
+        cookies = {
+            "sessionKey": self.session_key,
+            "CH-prefers-color-scheme": "dark",
+            "anthropic-consent-preferences": '{"analytics":true,"marketing":true}',
         }
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
+            self.logger.debug(f"Cookies: {cookies}")
             if data:
                 self.logger.debug(f"Request data: {data}")
                 data = json.dumps(data).encode("utf-8")
 
             req = urllib.request.Request(url, data=data, headers=headers, method=method)
+            req.add_header("Cookie", "; ".join([f"{k}={v}" for k, v in cookies.items()]))
+
             with urllib.request.urlopen(req) as response:
                 self.logger.debug(f"Response status code: {response.status}")
                 self.logger.debug(f"Response headers: {response.headers}")
@@ -43,16 +44,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 content = content.decode("utf-8")
                 self.logger.debug(f"Response content: {content[:1000]}...")
 
-                if response.status == 403:
-                    error_msg = (
-                        "Received a 403 Forbidden error. Your session key might be invalid. "
-                        "Please try logging out and logging in again. If the issue persists, "
-                        "you can try using the claude.ai-curl provider as a workaround:\n"
-                        "claudesync api logout\n"
-                        "claudesync api login claude.ai-curl"
-                    )
-                    self.logger.error(error_msg)
-                    raise ProviderError(error_msg)
+                self._handle_http_error(response.status, content)
 
                 if not content:
                     return None
@@ -72,3 +64,15 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
             self.logger.error(f"Response content: {content}")
             raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
+
+    def _handle_http_error(self, status_code, content):
+        if status_code == 403:
+            error_msg = (
+                "Received a 403 Forbidden error. Your session key might be invalid. "
+                "Please try logging out and logging in again. If the issue persists, "
+                "you can try using the claude.ai-curl provider as a workaround:\n"
+                "claudesync api logout\n"
+                "claudesync api login claude.ai-curl"
+            )
+            self.logger.error(error_msg)
+            raise ProviderError(error_msg)
