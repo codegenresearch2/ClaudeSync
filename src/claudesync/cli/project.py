@@ -43,7 +43,7 @@ def create(ctx):
     provider = validate_and_get_provider(ctx.obj)
     active_organization_id = ctx.obj.get("active_organization_id")
 
-    title = click.prompt("Enter a title for your new project")
+    title = click.prompt("Enter a title for your new project", default="New Project")
     description = click.prompt("Enter the project description (optional)", default="")
 
     try:
