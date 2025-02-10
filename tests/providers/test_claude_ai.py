@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import urllib.request
 import urllib.error
 import gzip
+import io
 import json
 from claudesync.providers.claude_ai import ClaudeAIProvider
 from claudesync.exceptions import ProviderError
@@ -52,9 +53,15 @@ class TestClaudeAIProvider(unittest.TestCase):
     def test_make_request_gzip_response(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.status = 200
-        mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
         mock_response.getheader.return_value = 'gzip'
         mock_response.getheaders.return_value = [('Content-Encoding', 'gzip')]
+        
+        gzip_content = io.BytesIO()
+        with gzip.GzipFile(fileobj=gzip_content, mode='w') as gzip_file:
+            gzip_file.write(json.dumps({"key": "value"}).encode('utf-8'))
+        gzip_content.seek(0)
+        mock_response.read.return_value = gzip_content.read()
+        
         mock_urlopen.return_value = mock_response
 
         result = self.provider._make_request("GET", "/test")
