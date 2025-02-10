@@ -2,6 +2,7 @@ import datetime
 import logging
 import urllib.request
 import urllib.parse
+import json
 
 import click
 from .base_provider import BaseProvider
@@ -43,7 +44,15 @@ class BaseClaudeAIProvider(BaseProvider):
         # ... (rest of the login method remains unchanged)
 
     def get_organizations(self):
-        # ... (rest of the get_organizations method remains unchanged)
+        response = self._make_request("GET", "/organizations")
+        if not response:
+            raise ProviderError("Unable to retrieve organization information")
+        return [
+            {"id": org["uuid"], "name": org["name"]}
+            for org in response
+            if ({"chat", "claude_pro"}.issubset(set(org.get("capabilities", []))) or
+                {"chat", "raven"}.issubset(set(org.get("capabilities", []))))
+        ]
 
     def get_projects(self, organization_id, include_archived=False):
         # ... (rest of the get_projects method remains unchanged)
@@ -86,14 +95,16 @@ class BaseClaudeAIProvider(BaseProvider):
         headers = {"Authorization": f"Bearer {self.session_key}", "Accept-Encoding": "gzip"}
 
         if data:
-            data = urllib.parse.urlencode(data).encode("utf-8")
+            data = json.dumps(data).encode("utf-8")
 
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
 
         try:
             with urllib.request.urlopen(req) as response:
-                return response.read().decode("utf-8")
+                return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             raise ProviderError(f"HTTP Error {e.code}: {e.reason}")
         except urllib.error.URLError as e:
             raise ProviderError(f"URL Error: {e.reason}")
+        except json.JSONDecodeError:
+            raise ProviderError("Invalid JSON response")
