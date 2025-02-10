@@ -10,6 +10,23 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
+def save_artifacts(chat_folder, artifacts):
+    """
+    Save artifacts to the specified chat folder.
+
+    Args:
+        chat_folder (str): The folder where chat artifacts will be saved.
+        artifacts (list): A list of dictionaries containing artifact information.
+    """
+    artifact_folder = os.path.join(chat_folder, "artifacts")
+    os.makedirs(artifact_folder, exist_ok=True)
+
+    for artifact in artifacts:
+        artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
+        with open(artifact_file, "w") as f:
+            f.write(artifact["content"])
+
+
 def sync_chats(provider, config, sync_all=False):
     """
     Synchronize chats and their artifacts from the remote source.
@@ -29,7 +46,7 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
-    chat_destination = os.path.join(local_path, "chats")
+    chat_destination = os.path.join(local_path, "claude_chats")
     os.makedirs(chat_destination, exist_ok=True)
 
     organization_id = config.get("active_organization_id")
@@ -65,12 +82,7 @@ def sync_chats(provider, config, sync_all=False):
                     artifacts = extract_artifacts(message["text"])
                     if artifacts:
                         logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                        artifact_folder = os.path.join(chat_folder, "artifacts")
-                        os.makedirs(artifact_folder, exist_ok=True)
-                        for artifact in artifacts:
-                            artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
-                            with open(artifact_file, "w") as f:
-                                f.write(artifact["content"])
+                        save_artifacts(chat_folder, artifacts)
         else:
             logger.debug(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
 
