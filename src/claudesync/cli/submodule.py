@@ -68,7 +68,7 @@ def create(config):
 
     # Fetch all remote projects
     all_remote_projects = provider.get_projects(active_organization_id, include_archived=False)
-    remote_project_names = [project["name"] for project in all_remote_projects]
+    remote_project_names = {project["name"] for project in all_remote_projects}
 
     click.echo(f"Detected {len(submodules)} submodule(s). Creating projects for each:")
 
@@ -94,6 +94,4 @@ def create(config):
                 f"Error: Failed to create project for submodule '{submodule_name}': {str(e)}"
             )
 
-    click.echo(
-        "Submodule project creation process completed."
-    )
+    click.echo("Submodule project creation process completed.")
