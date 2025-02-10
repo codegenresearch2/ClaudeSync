@@ -54,7 +54,11 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.headers = {'Content-Encoding': 'gzip'}
-        mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
+        gzip_content = io.BytesIO()
+        with gzip.GzipFile(fileobj=gzip_content, mode='w') as gzip_file:
+            gzip_file.write(json.dumps({"key": "value"}).encode('utf-8'))
+        gzip_content.seek(0)
+        mock_response.read.return_value = gzip_content.read()
         mock_urlopen.return_value = mock_response
 
         result = self.provider._make_request("GET", "/test")
