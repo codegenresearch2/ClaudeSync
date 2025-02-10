@@ -70,9 +70,9 @@ def process_chat_messages(provider, config, chat, chat_folder):
         save_message(chat_folder, message)
 
 
-def sync_chat(provider, config, chat, chat_destination):
+def check_and_sync_chat(provider, config, chat, chat_destination):
     """
-    Synchronize a single chat and its artifacts.
+    Check if the chat belongs to the active project and sync it.
 
     Args:
         provider: The API provider instance.
@@ -80,14 +80,17 @@ def sync_chat(provider, config, chat, chat_destination):
         chat (dict): The chat metadata.
         chat_destination (str): The base destination folder for the chat.
     """
-    chat_folder = os.path.join(chat_destination, chat["uuid"])
-    os.makedirs(chat_folder, exist_ok=True)
+    if (chat.get("project") and chat["project"].get("uuid") == config.get("active_project_id")) or config.get("sync_all"):
+        chat_folder = os.path.join(chat_destination, chat["uuid"])
+        os.makedirs(chat_folder, exist_ok=True)
 
-    # Save chat metadata
-    with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
-        json.dump(chat, f, indent=2)
+        # Save chat metadata
+        with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
+            json.dump(chat, f, indent=2)
 
-    process_chat_messages(provider, config, chat, chat_folder)
+        process_chat_messages(provider, config, chat, chat_folder)
+    else:
+        logger.info(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
 
 
 def sync_chats(provider, config, sync_all=False):
@@ -116,20 +119,12 @@ def sync_chats(provider, config, sync_all=False):
     if not organization_id:
         raise ConfigurationError("No active organization set. Please select an organization.")
 
-    active_project_id = config.get("active_project_id")
-    if not active_project_id and not sync_all:
-        raise ConfigurationError("No active project set. Please select a project or use the -a flag to sync all chats.")
-
     logger.debug(f"Fetching chats for organization {organization_id}")
     chats = provider.get_chat_conversations(organization_id)
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        if sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id):
-            logger.info(f"Processing chat {chat['uuid']}")
-            sync_chat(provider, config, chat, chat_destination)
-        else:
-            logger.info(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
+        check_and_sync_chat(provider, config, chat, chat_destination)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
