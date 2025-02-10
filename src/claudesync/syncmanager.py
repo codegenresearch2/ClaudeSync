@@ -1,4 +1,4 @@
-import os
+import functools
 import time
 import logging
 from datetime import datetime, timezone
@@ -10,6 +10,34 @@ from claudesync.utils import compute_md5_hash
 from claudesync.exceptions import ProviderError
 
 logger = logging.getLogger(__name__)
+
+def retry_on_403(max_retries=3, delay=1):
+    """
+    Decorator to retry a function on 403 Forbidden error.
+
+    This decorator will retry the wrapped function up to max_retries times
+    if a ProviderError with a 403 Forbidden message is encountered.
+
+    Args:
+        max_retries (int): Maximum number of retries for 403 errors.
+        delay (int): Delay between retries in seconds.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(self, *args, **kwargs)
+                except ProviderError as e:
+                    if "403 Forbidden" in str(e) and attempt < max_retries - 1:
+                        logger.warning(
+                            f"Received 403 error. Retrying in {delay} seconds..."
+                        )
+                        time.sleep(delay)
+                    else:
+                        raise
+        return wrapper
+    return decorator
 
 class SyncManager:
     """
@@ -49,28 +77,5 @@ class SyncManager:
         except ProviderError as e:
             click.echo(f"Error checking for existing remote projects: {str(e)}")
             return
-
-    def retry_on_403(func):
-        """
-        Decorator to retry a function on 403 Forbidden error.
-
-        This decorator will retry the wrapped function up to max_retries times
-        if a ProviderError with a 403 Forbidden message is encountered.
-        """
-
-        def wrapper(self, *args, **kwargs):
-            for attempt in range(self.max_retries):
-                try:
-                    return func(self, *args, **kwargs)
-                except ProviderError as e:
-                    if "403 Forbidden" in str(e) and attempt < self.max_retries - 1:
-                        logger.warning(
-                            f"Received 403 error. Retrying in {self.retry_delay} seconds..."
-                        )
-                        time.sleep(self.retry_delay)
-                    else:
-                        raise
-
-        return wrapper
 
     # Rest of the code remains the same
