@@ -8,7 +8,11 @@ from claudesync.utils import get_local_files
 from ..utils import handle_errors, validate_and_get_provider
 from ..syncmanager import SyncManager
 from ..chat_sync import sync_chats
+import logging
 
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 @click.command()
 @click.pass_obj
@@ -45,10 +49,11 @@ def sync(config):
     )
     local_files = get_local_files(config.get("local_path"))
     sync_manager.sync(local_files, remote_files)
+    click.echo("Project sync completed successfully.")
 
     # Sync chats
     sync_chats(provider, config)
-    click.echo("Project and chat sync completed successfully.")
+    click.echo("Chat sync completed successfully.")
 
 
 def validate_local_path(local_path):
