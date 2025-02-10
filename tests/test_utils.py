@@ -43,6 +43,12 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "test~"), "w") as f:
                 f.write("*.log\n")
 
+            # Create VCS directories and a file within each
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
+                os.mkdir(os.path.join(tmpdir, vcs))
+                with open(os.path.join(tmpdir, vcs, "afile"), "w") as f:
+                    f.write("*.log\n")
+
             for buildDir in {"target", "build"}:
                 os.mkdir(os.path.join(tmpdir, buildDir))
                 with open(os.path.join(tmpdir, buildDir, "output.txt"), "w") as f:
@@ -52,13 +58,14 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
+            print(local_files)
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
             self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
             self.assertNotIn(os.path.join("target", "output.txt"), local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-            self.assertEqual(len(local_files), 4)
+            self.assertEqual(len(local_files), 3)
 
     def test_load_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
