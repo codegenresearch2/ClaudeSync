@@ -32,11 +32,21 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey"),
-            call("Please enter the expires time for the sessionKey"),
+            call("Please enter your sessionKey", type=str, hide_input=True),
+            call(
+                "Please enter the expires time for the sessionKey",
+                default=ANY,
+                type=str,
+            ),
         ]
 
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
+
+    @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
+    def test_login_invalid_key(self, mock_make_request):
+        mock_make_request.side_effect = ValueError("Invalid session key")
+        with self.assertRaises(ValueError):
+            self.provider.login()
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
