@@ -2,6 +2,7 @@ import functools
 import time
 import logging
 from datetime import datetime, timezone
+import os
 
 import click
 from tqdm import tqdm
@@ -24,14 +25,15 @@ def retry_on_403(max_retries=3, delay=1):
     """
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(*args, **kwargs):
+            self = args[0] if args else None
             for attempt in range(max_retries):
                 try:
-                    return func(self, *args, **kwargs)
+                    return func(*args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
                         logger.warning(
-                            f"Received 403 error. Retrying in {delay} seconds..."
+                            f"Received 403 error on attempt {attempt + 1}. Retrying in {delay} seconds..."
                         )
                         time.sleep(delay)
                     else:
