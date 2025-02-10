@@ -3,6 +3,7 @@ import click
 from retry import retry
 from urllib3.exceptions import HTTPError
 from claudesync.exceptions import ProviderError
+from tqdm import tqdm
 
 # Configuration object to manage state and settings
 config = {
@@ -28,19 +29,19 @@ def handle_errors(func):
 
 # Command group for project management
 @click.group()
-@click.pass_obj
-def project(config):
+@click.pass_context
+def project(ctx):
     """Manage ai projects within the active organization."""
-    pass
+    ctx.obj = config
 
 # Command to create a new project
 @project.command()
-@click.pass_obj
+@click.pass_context
 @handle_errors
-def create(config):
+def create(ctx):
     """Create a new project in the active organization."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get("active_organization_id")
+    provider = validate_and_get_provider(ctx.obj)
+    active_organization_id = ctx.obj.get("active_organization_id")
 
     title = click.prompt("Enter a title for your new project")
     description = click.prompt("Enter the project description (optional)", default="")
@@ -53,19 +54,19 @@ def create(config):
             f"Project '{new_project['title']}' (uuid: {new_project['uuid']}) has been created successfully."
         )
 
-        config['active_project_id'] = new_project["uuid"]
-        config['active_project_name'] = new_project["title"]
+        ctx.obj['active_project_id'] = new_project["uuid"]
+        ctx.obj['active_project_name'] = new_project["title"]
     except ProviderError as e:
         click.echo(f"Failed to create project: {str(e)}")
 
 # Command to archive an existing project
 @project.command()
-@click.pass_obj
+@click.pass_context
 @handle_errors
-def archive(config):
+def archive(ctx):
     """Archive an existing project."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get("active_organization_id")
+    provider = validate_and_get_provider(ctx.obj)
+    active_organization_id = ctx.obj.get("active_organization_id")
     projects = provider.get_projects(active_organization_id, include_archived=False)
     if not projects:
         click.echo("No active projects found.")
@@ -85,12 +86,12 @@ def archive(config):
 
 # Command to select an active project
 @project.command()
-@click.pass_obj
+@click.pass_context
 @handle_errors
-def select(config):
+def select(ctx):
     """Set the active project for syncing."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get("active_organization_id")
+    provider = validate_and_get_provider(ctx.obj)
+    active_organization_id = ctx.obj.get("active_organization_id")
     projects = provider.get_projects(active_organization_id, include_archived=False)
     if not projects:
         click.echo("No active projects found.")
@@ -101,20 +102,20 @@ def select(config):
     selection = click.prompt("Enter the number of the project to select", type=int, default=1)
     if 1 <= selection <= len(projects):
         selected_project = projects[selection - 1]
-        config['active_project_id'] = selected_project["id"]
-        config['active_project_name'] = selected_project["title"]
+        ctx.obj['active_project_id'] = selected_project["id"]
+        ctx.obj['active_project_name'] = selected_project["title"]
         click.echo(f"Selected project: {selected_project['title']} (ID: {selected_project['id']})")
     else:
         click.echo("Invalid selection. Please try again.")
 
 # Command to list all projects
 @project.command()
-@click.pass_obj
+@click.pass_context
 @handle_errors
-def ls(config):
+def ls(ctx):
     """List all projects in the active organization."""
-    provider = validate_and_get_provider(config)
-    active_organization_id = config.get("active_organization_id")
+    provider = validate_and_get_provider(ctx.obj)
+    active_organization_id = ctx.obj.get("active_organization_id")
     projects = provider.get_projects(active_organization_id, include_archived=True)
     if not projects:
         click.echo("No projects found.")
@@ -126,30 +127,30 @@ def ls(config):
 
 # Command to synchronize the project files
 @project.command()
-@click.pass_obj
+@click.pass_context
 @handle_errors
-def sync(config):
+def sync(ctx):
     """Synchronize the project files, including submodules if they exist remotely."""
-    provider = validate_and_get_provider(config)
-    active_project_id = config.get("active_project_id")
-    local_path = config.get("local_path")
+    provider = validate_and_get_provider(ctx.obj)
+    active_project_id = ctx.obj.get("active_project_id")
+    local_path = ctx.obj.get("local_path")
     if not local_path:
         click.echo(
             "No local path set for this project. Please select an existing project or create a new one using "
             "'claudesync project select' or 'claudesync project create'."
         )
         return
-    submodule_detect_filenames = config.get("submodule_detect_filenames", [])
+    submodule_detect_filenames = ctx.obj.get("submodule_detect_filenames", [])
     local_submodules = detect_submodules(local_path, submodule_detect_filenames)
     all_remote_projects = provider.get_projects()
     remote_submodule_projects = [
-        project for project in all_remote_projects if project["title"].startswith(config['active_project_name'] + "-SubModule-")
+        project for project in all_remote_projects if project["title"].startswith(ctx.obj['active_project_name'] + "-SubModule-")
     ]
-    sync_manager = SyncManager(provider, config)
+    sync_manager = SyncManager(provider, ctx.obj)
     remote_files = provider.list_files(active_project_id)
     local_files = get_local_files(local_path)
     sync_manager.sync(local_files, remote_files)
-    click.echo(f"Main project '{config['active_project_name']}' synced successfully.")
+    click.echo(f"Main project '{ctx.obj['active_project_name']}' synced successfully.")
     for local_submodule, detected_file in local_submodules:
         submodule_name = os.path.basename(local_submodule)
         remote_project = next(
@@ -160,7 +161,7 @@ def sync(config):
             submodule_path = os.path.join(local_path, local_submodule)
             submodule_files = get_local_files(submodule_path)
             remote_submodule_files = provider.list_files(remote_project["id"])
-            submodule_config = config.copy()
+            submodule_config = ctx.obj.copy()
             submodule_config["active_project_id"] = remote_project["id"]
             submodule_config["active_project_name"] = remote_project["title"]
             submodule_config["local_path"] = submodule_path
