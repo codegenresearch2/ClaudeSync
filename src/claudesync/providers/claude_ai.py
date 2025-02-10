@@ -23,14 +23,17 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         if data:
             json_data = json.dumps(data).encode("utf-8")
             request.add_header("Content-Length", len(json_data))
-            urllib.request.urlopen(request, json_data)
+            body = json_data
+        else:
+            body = None
 
         try:
-            with urllib.request.urlopen(request) as response:
+            with urllib.request.urlopen(request, data=body) as response:
                 response_body = response.read()
                 if response.info().get("Content-Encoding") == "gzip":
                     response_body = gzip.decompress(response_body)
-                response_body = response_body.decode("utf-8")
+
+                response_body_str = response_body.decode("utf-8")
 
                 if response.status == 403:
                     error_msg = (
@@ -44,15 +47,19 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                     raise ProviderError(error_msg)
 
                 try:
-                    return json.loads(response_body)
+                    return json.loads(response_body_str)
                 except json.JSONDecodeError as json_err:
                     logging.error(f"Failed to parse JSON response: {str(json_err)}")
-                    logging.error(f"Response content: {response_body}")
+                    logging.error(f"Response content: {response_body_str}")
                     raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
 
         except urllib.error.HTTPError as e:
-            logging.error(f"HTTP error occurred: {e.code} {e.reason}")
-            raise ProviderError(f"API request failed: {str(e)}")
+            if e.code == 403:
+                error_msg = f"API request failed: HTTP Error {e.code}: Forbidden"
+            else:
+                error_msg = f"API request failed: {e.reason}"
+            logging.error(error_msg)
+            raise ProviderError(error_msg)
         except urllib.error.URLError as e:
             logging.error(f"URL error occurred: {e.reason}")
             raise ProviderError(f"API request failed: {str(e)}")
