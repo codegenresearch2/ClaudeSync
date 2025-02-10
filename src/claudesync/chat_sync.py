@@ -28,7 +28,7 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
-    chat_destination = os.path.join(local_path, "chats")
+    chat_destination = os.path.join(local_path, "claude_chats")
     os.makedirs(chat_destination, exist_ok=True)
 
     organization_id = config.get("active_organization_id")
@@ -44,11 +44,11 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        sync_chat(provider, config, chat, chat_destination, active_project_id, sync_all)
+        sync_chat(provider, config, chat, chat_destination, organization_id, active_project_id, sync_all)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
-def sync_chat(provider, config, chat, chat_destination, active_project_id, sync_all):
+def sync_chat(provider, config, chat, chat_destination, organization_id, active_project_id, sync_all):
     """
     Synchronize a single chat and its artifacts.
 
@@ -57,6 +57,7 @@ def sync_chat(provider, config, chat, chat_destination, active_project_id, sync_
         config: The configuration manager instance.
         chat: The chat metadata.
         chat_destination: The local directory to save the chat data.
+        organization_id: The ID of the active organization.
         active_project_id: The ID of the active project.
         sync_all: Whether to sync all chats or only the active project's chats.
     """
@@ -111,7 +112,9 @@ def handle_artifacts(full_chat, chat_folder):
     for message in full_chat["chat_messages"]:
         if message["sender"] == "assistant":
             artifacts = extract_artifacts(message["text"])
-            save_artifacts(artifacts, artifact_folder)
+            if artifacts:
+                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+                save_artifacts(artifacts, artifact_folder)
 
 def save_artifacts(artifacts, artifact_folder):
     """
