@@ -85,18 +85,49 @@ def sync_chat(provider, config, chat, chat_folder):
         chat: The chat dictionary.
         chat_folder: The folder where the chat data should be saved.
     """
+    sync_chat_metadata(chat, chat_folder, config)
+    full_chat = provider.get_chat_conversation(config["active_organization_id"], chat["uuid"])
+    sync_chat_messages(full_chat, chat_folder)
+    sync_chat_artifacts(full_chat, chat_folder, provider)
+
+def sync_chat_metadata(chat, chat_folder, config):
+    """
+    Save chat metadata to the specified chat folder.
+
+    Args:
+        chat: The chat dictionary.
+        chat_folder: The folder where the chat metadata should be saved.
+        config: The configuration manager instance.
+    """
     metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
     if not os.path.exists(metadata_file):
         with open(metadata_file, "w") as f:
             json.dump(chat, f, indent=2)
 
-    full_chat = provider.get_chat_conversation(config["active_organization_id"], chat["uuid"])
+def sync_chat_messages(full_chat, chat_folder):
+    """
+    Save chat messages to the specified chat folder.
+
+    Args:
+        full_chat: The full chat conversation dictionary.
+        chat_folder: The folder where the chat messages should be saved.
+    """
     for message in full_chat["chat_messages"]:
         message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
         if not os.path.exists(message_file):
             with open(message_file, "w") as f:
                 json.dump(message, f, indent=2)
 
+def sync_chat_artifacts(full_chat, chat_folder, provider):
+    """
+    Extract and save artifacts from the chat messages.
+
+    Args:
+        full_chat: The full chat conversation dictionary.
+        chat_folder: The folder where the artifacts should be saved.
+        provider: The API provider instance.
+    """
+    for message in full_chat["chat_messages"]:
         if message["sender"] == "assistant":
             artifacts = extract_artifacts(message["text"])
             if artifacts:
