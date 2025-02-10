@@ -48,16 +48,18 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        if not should_process_chat(chat, active_project_id, sync_all):
-            logger.debug(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
-            continue
-
         chat_id = chat["uuid"]
         chat_folder = os.path.join(chat_destination, chat_id)
         os.makedirs(chat_folder, exist_ok=True)
 
-        logger.info(f"Processing chat {chat_id}")
-        sync_chat(provider, config, chat, chat_folder)
+        if should_process_chat(chat, active_project_id, sync_all):
+            logger.info(f"Processing chat {chat_id}")
+            sync_chat_metadata(chat, chat_folder)
+            full_chat = provider.get_chat_conversation(organization_id, chat_id)
+            sync_chat_messages(full_chat, chat_folder)
+            sync_chat_artifacts(full_chat, chat_folder, provider)
+        else:
+            logger.debug(f"Skipping chat {chat_id} as it doesn't belong to the active project")
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
@@ -75,29 +77,13 @@ def should_process_chat(chat, active_project_id, sync_all):
     """
     return sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id)
 
-def sync_chat(provider, config, chat, chat_folder):
-    """
-    Synchronize a single chat and its artifacts.
-
-    Args:
-        provider: The API provider instance.
-        config: The configuration manager instance.
-        chat: The chat dictionary.
-        chat_folder: The folder where the chat data should be saved.
-    """
-    sync_chat_metadata(chat, chat_folder, config)
-    full_chat = provider.get_chat_conversation(config["active_organization_id"], chat["uuid"])
-    sync_chat_messages(full_chat, chat_folder)
-    sync_chat_artifacts(full_chat, chat_folder, provider)
-
-def sync_chat_metadata(chat, chat_folder, config):
+def sync_chat_metadata(chat, chat_folder):
     """
     Save chat metadata to the specified chat folder.
 
     Args:
         chat: The chat dictionary.
         chat_folder: The folder where the chat metadata should be saved.
-        config: The configuration manager instance.
     """
     metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
     if not os.path.exists(metadata_file):
