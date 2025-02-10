@@ -11,38 +11,32 @@ from claudesync.config_manager import ConfigManager
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
 
-def normalize_and_calculate_md5(content):
+def compute_md5_hash(content):
     """
-    Calculate the MD5 checksum of the given content after normalizing line endings.
+    Compute the MD5 hash of the given content.
 
-    This function normalizes the line endings of the input content to Unix-style (\n),
-    strips leading and trailing whitespace, and then calculates the MD5 checksum
-    of the normalized content. This ensures consistent checksums across different
-    environments where line ending styles may vary.
+    This function takes a string as input, encodes it into UTF-8, and then computes the MD5 hash of the encoded string.
+    The result is a hexadecimal representation of the hash, which is commonly used for creating a quick and simple fingerprint of a piece of data.
 
     Args:
-        content (str): The content for which to calculate the MD5 checksum.
+        content (str): The content for which to compute the MD5 hash.
 
     Returns:
-        str: The hexadecimal MD5 checksum of the normalized content.
+        str: The hexadecimal MD5 hash of the input content.
     """
-    normalized_content = content.replace("\r\n", "\n").replace("\r", "\n").strip()
-    return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
+    return hashlib.md5(content.encode("utf-8")).hexdigest()
 
 def load_gitignore(base_path):
     """
-    Loads and parses the .gitignore file from the specified base path.
+    Load and parse the .gitignore file from the specified base path.
 
-    This function attempts to find a .gitignore file in the given base path. If found,
-    it reads the file and creates a PathSpec object that can be used to match paths
-    against the patterns defined in the .gitignore file.
+    This function attempts to find a .gitignore file in the given base path. If found, it reads the file and creates a PathSpec object that can be used to match paths against the patterns defined in the .gitignore file.
 
     Args:
         base_path (str): The base directory path where the .gitignore file is located.
 
     Returns:
-        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .gitignore file
-                                    if the file exists; otherwise, None.
+        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .gitignore file if the file exists; otherwise, None.
     """
     gitignore_path = os.path.join(base_path, ".gitignore")
     if os.path.exists(gitignore_path):
@@ -52,16 +46,13 @@ def load_gitignore(base_path):
 
 def is_text_file(file_path, sample_size=8192):
     """
-    Determines if a file is a text file by checking for the absence of null bytes.
+    Determine if a file is a text file by checking for the absence of null bytes.
 
-    This function reads a sample of the file (default 8192 bytes) and checks if it contains
-    any null byte (\x00). The presence of a null byte is often indicative of a binary file.
-    This is a heuristic method and may not be 100% accurate for all file types.
+    This function reads a sample of the file (default 8192 bytes) and checks if it contains any null byte (\x00). The presence of a null byte is often indicative of a binary file. This is a heuristic method and may not be 100% accurate for all file types.
 
     Args:
         file_path (str): The path to the file to be checked.
-        sample_size (int, optional): The number of bytes to read from the file for checking.
-                                     Defaults to 8192.
+        sample_size (int, optional): The number of bytes to read from the file for checking. Defaults to 8192.
 
     Returns:
         bool: True if the file is likely a text file, False if it is likely binary or an error occurred.
@@ -74,10 +65,9 @@ def is_text_file(file_path, sample_size=8192):
 
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
     """
-    Determines whether a file should be processed based on various criteria.
+    Determine whether a file should be processed based on various criteria.
 
-    This function checks if a file should be included in the synchronization process by applying
-    several filters:
+    This function checks if a file should be included in the synchronization process by applying several filters:
     - Checks if the file size is within the configured maximum limit.
     - Skips temporary editor files (ending with '~').
     - Applies .gitignore rules if a gitignore PathSpec is provided.
@@ -109,9 +99,7 @@ def process_file(file_path):
     """
     Reads the content of a file and computes its MD5 hash.
 
-    This function attempts to read the file as UTF-8 text and compute its MD5 hash.
-    If the file cannot be read as UTF-8 or any other error occurs, it logs the issue
-    and returns None.
+    This function attempts to read the file as UTF-8 text and compute its MD5 hash. If the file cannot be read as UTF-8 or any other error occurs, it logs the issue and returns None.
 
     Args:
         file_path (str): The path to the file to be processed.
@@ -122,7 +110,7 @@ def process_file(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
-            return normalize_and_calculate_md5(content)
+            return compute_md5_hash(content)
     except UnicodeDecodeError:
         logger.debug(f"Unable to read {file_path} as UTF-8 text. Skipping.")
     except Exception as e:
@@ -188,6 +176,40 @@ def validate_and_get_provider(config, require_org=True):
     if require_org and not config.get("active_organization_id"):
         raise ConfigurationError("No active organization set. Please select an organization.")
     return get_provider(active_provider, session_key)
+
+def validate_and_store_local_path(config):
+    """
+    Prompts the user for the absolute path to their local project directory and stores it in the configuration.
+
+    This function repeatedly prompts the user to enter the absolute path to their local project directory until a valid absolute path is provided. The path is validated to ensure it exists, is a directory, and is an absolute path. Once a valid path is provided, it is stored in the configuration using the `set` method of the `ConfigManager` object.
+
+    Args:
+        config (ConfigManager): The configuration manager instance to store the local path setting.
+
+    Note:
+        This function uses `click.prompt` to interact with the user, providing a default path (the current working directory) and validating the user's input to ensure it meets the criteria for an absolute path to a directory.
+    """
+
+    def get_default_path():
+        return os.getcwd()
+
+    while True:
+        default_path = get_default_path()
+        local_path = click.prompt(
+            "Enter the absolute path to your local project directory",
+            type=click.Path(
+                exists=True, file_okay=False, dir_okay=True, resolve_path=True
+            ),
+            default=default_path,
+            show_default=True,
+        )
+
+        if os.path.isabs(local_path):
+            config.set("local_path", local_path)
+            click.echo(f"Local path set to: {local_path}")
+            break
+        else:
+            click.echo("Please enter an absolute path.")
 
 def load_claudeignore(base_path):
     claudeignore_path = os.path.join(base_path, ".claudeignore")
