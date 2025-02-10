@@ -91,9 +91,9 @@ def create(config):
         except ProviderError as e:
             logger.error(f"Failed to create project for submodule '{submodule_name}': {str(e)}")
             click.echo(
-                f"Failed to create project for submodule '{submodule_name}': {str(e)}"
+                f"Error: Failed to create project for submodule '{submodule_name}': {str(e)}"
             )
 
     click.echo(
-        "\nSubmodule project creation process completed."
+        "Submodule project creation process completed."
     )
