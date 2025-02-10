@@ -15,7 +15,8 @@ class TestClaudeAIProvider(unittest.TestCase):
         self.mock_config = MagicMock()
 
     @patch("claudesync.config_manager.ConfigManager.get_session_key")
-    def test_make_request_success(self, mock_get_session_key):
+    @patch("urllib.request.urlopen")
+    def test_make_request_success(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.read.return_value = b'{"key": "value"}'
