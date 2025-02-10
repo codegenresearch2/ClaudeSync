@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 def retry_on_403(max_retries=3, retry_delay=1):
     def decorator(func):
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(self, *args, **kwargs):
             for attempt in range(max_retries):
                 try:
-                    return func(*args, **kwargs)
+                    return func(self, *args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
                         logger.warning(f"Received 403 error. Retrying in {retry_delay} seconds... (attempt {attempt + 2} of {max_retries})")
@@ -22,7 +22,18 @@ def retry_on_403(max_retries=3, retry_delay=1):
     return decorator
 
 class SyncManager:
+    """
+    Manages the synchronization process between local and remote files.
+    """
+
     def __init__(self, provider, config):
+        """
+        Initializes the SyncManager with the given provider and configuration.
+
+        Args:
+            provider (Provider): The provider instance to interact with the remote storage.
+            config (dict): Configuration dictionary containing sync settings.
+        """
         self.provider = provider
         self.config = config
         self.active_organization_id = config.get("active_organization_id")
@@ -75,7 +86,10 @@ class SyncManager:
                     )
                     pbar.update(1)
 
-        self.prune_remote_files(remote_files, remote_files_to_delete)
+        if not self.config.get("prune_remote_files"):
+            logger.debug("Remote pruning is not enabled.")
+        else:
+            self.prune_remote_files(remote_files, remote_files_to_delete)
 
     @retry_on_403()
     def update_existing_file(
@@ -265,7 +279,7 @@ class SyncManager:
             None
         """
         if not self.config.get("prune_remote_files"):
-            logger.debug("Remote pruning is not enabled.")
+            click.echo("Remote pruning is not enabled.")
             return
 
         for file_to_delete in list(remote_files_to_delete):
