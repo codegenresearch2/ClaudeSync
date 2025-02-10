@@ -28,7 +28,7 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
-    chat_destination = os.path.join(local_path, "chats")
+    chat_destination = os.path.join(local_path, "claude_chats")
     os.makedirs(chat_destination, exist_ok=True)
 
     organization_id = config.get("active_organization_id")
@@ -58,18 +58,14 @@ def sync_single_chat(provider, config, chat, chat_destination):
         chat: The chat metadata.
         chat_destination: The local directory to save the chat data.
     """
-    if sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id):
-        logger.info(f"Processing chat {chat['uuid']}")
-        chat_folder = os.path.join(chat_destination, chat["uuid"])
-        os.makedirs(chat_folder, exist_ok=True)
-
+    chat_folder = os.path.join(chat_destination, chat["uuid"])
+    if not os.path.exists(chat_folder):
+        os.makedirs(chat_folder)
         save_chat_metadata(chat, chat_folder)
 
         logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
         full_chat = provider.get_chat_conversation(organization_id, chat["uuid"])
-
         save_chat_messages(full_chat, chat_folder)
-
         handle_artifacts(full_chat, chat_folder)
 
 def save_chat_metadata(chat, chat_folder):
@@ -81,8 +77,9 @@ def save_chat_metadata(chat, chat_folder):
         chat_folder: The local directory to save the chat data.
     """
     metadata_file = os.path.join(chat_folder, "metadata.json")
-    with open(metadata_file, "w") as f:
-        json.dump(chat, f, indent=2)
+    if not os.path.exists(metadata_file):
+        with open(metadata_file, "w") as f:
+            json.dump(chat, f, indent=2)
 
 def save_chat_messages(full_chat, chat_folder):
     """
@@ -94,8 +91,9 @@ def save_chat_messages(full_chat, chat_folder):
     """
     for message in full_chat["chat_messages"]:
         message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-        with open(message_file, "w") as f:
-            json.dump(message, f, indent=2)
+        if not os.path.exists(message_file):
+            with open(message_file, "w") as f:
+                json.dump(message, f, indent=2)
 
 def handle_artifacts(full_chat, chat_folder):
     """
@@ -111,23 +109,21 @@ def handle_artifacts(full_chat, chat_folder):
     for message in full_chat["chat_messages"]:
         if message["sender"] == "assistant":
             artifacts = extract_artifacts(message["text"])
-            if artifacts:
-                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                for artifact in artifacts:
-                    save_artifact(artifact, artifact_folder)
+            save_artifacts(artifacts, artifact_folder)
 
-def save_artifact(artifact, artifact_folder):
+def save_artifacts(artifacts, artifact_folder):
     """
-    Save an artifact to a file.
+    Save a list of artifacts to files.
 
     Args:
-        artifact: The artifact information.
-        artifact_folder: The local directory to save the artifact.
+        artifacts: A list of artifact dictionaries.
+        artifact_folder: The local directory to save the artifacts.
     """
-    artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
-    if not os.path.exists(artifact_file):
-        with open(artifact_file, "w") as f:
-            f.write(artifact["content"])
+    for artifact in artifacts:
+        artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
+        if not os.path.exists(artifact_file):
+            with open(artifact_file, "w") as f:
+                f.write(artifact["content"])
 
 def get_file_extension(artifact_type):
     """
