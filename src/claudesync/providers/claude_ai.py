@@ -17,6 +17,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
         cookies = {
             "sessionKey": self.session_key,
+            "CH-prefers-color-scheme": "dark",
+            "anthropic-consent-preferences": '{"analytics":true,"marketing":true}',
         }
 
         try:
@@ -81,4 +83,4 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         elif status_code >= 400:
             error_msg = f"API request failed: {status_code} - {content}"
             self.logger.error(error_msg)
-            raise ProviderError(error_msg)
+            raise ProviderError(f"API request failed: {status_code} - {content}")
