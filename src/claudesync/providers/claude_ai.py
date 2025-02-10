@@ -56,3 +56,6 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         except urllib.error.URLError as e:
             logging.error(f"URL error occurred: {e.reason}")
             raise ProviderError(f"API request failed: {str(e)}")
+        except UnicodeDecodeError as e:
+            logging.error(f"Unicode decode error occurred: {str(e)}")
+            raise ProviderError(f"Unicode decode error: {str(e)}")
