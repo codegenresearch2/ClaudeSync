@@ -13,6 +13,42 @@ logger = logging.getLogger(__name__)
 CLAUDE_CHATS_DIR = "claude_chats"
 METADATA_FILE_NAME = "metadata.json"
 
+def process_chat(provider, config, chat, chat_destination):
+    """
+    Process a single chat and save its metadata, messages, and artifacts.
+
+    Args:
+        provider: The API provider instance.
+        config: The configuration manager instance.
+        chat: The chat dictionary.
+        chat_destination: The destination folder for the chat data.
+    """
+    chat_id = chat["uuid"]
+    chat_folder = os.path.join(chat_destination, chat_id)
+    os.makedirs(chat_folder, exist_ok=True)
+
+    # Save chat metadata
+    metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
+    if not os.path.exists(metadata_file):
+        with open(metadata_file, "w") as f:
+            json.dump(chat, f, indent=2)
+
+    # Fetch full chat conversation
+    full_chat = provider.get_chat_conversation(config["active_organization_id"], chat_id)
+
+    # Save chat messages
+    for message in full_chat["chat_messages"]:
+        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+        if not os.path.exists(message_file):
+            with open(message_file, "w") as f:
+                json.dump(message, f, indent=2)
+
+    # Handle artifacts in assistant messages
+    artifacts = extract_artifacts(full_chat["chat_messages"])
+    if artifacts:
+        logger.info(f"Found {len(artifacts)} artifacts in chat {chat_id}")
+        save_artifacts(artifacts, chat_folder)
+
 def sync_chats(provider, config, sync_all=False):
     """
     Synchronize chats and their artifacts from the remote source.
@@ -48,77 +84,54 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        chat_id = chat["uuid"]
-        chat_folder = os.path.join(chat_destination, chat_id)
-        os.makedirs(chat_folder, exist_ok=True)
-
-        if should_process_chat(chat, active_project_id, sync_all):
-            logger.info(f"Processing chat {chat_id}")
-            sync_chat_metadata(chat, chat_folder)
-            full_chat = provider.get_chat_conversation(organization_id, chat_id)
-            sync_chat_messages(full_chat, chat_folder)
-            sync_chat_artifacts(full_chat, chat_folder, provider)
-        else:
-            logger.debug(f"Skipping chat {chat_id} as it doesn't belong to the active project")
+        process_chat(provider, config, chat, chat_destination)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
-def should_process_chat(chat, active_project_id, sync_all):
+def extract_artifacts(chat_messages):
     """
-    Determine if a chat should be processed based on the active project ID and sync_all flag.
+    Extract artifacts from the given chat messages.
 
     Args:
-        chat: The chat dictionary.
-        active_project_id: The ID of the active project.
-        sync_all: If True, process all chats; otherwise, process only chats belonging to the active project.
+        chat_messages: List of chat messages.
 
     Returns:
-        bool: True if the chat should be processed, False otherwise.
+        List of dictionaries containing artifact information.
     """
-    return sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id)
-
-def sync_chat_metadata(chat, chat_folder):
-    """
-    Save chat metadata to the specified chat folder.
-
-    Args:
-        chat: The chat dictionary.
-        chat_folder: The folder where the chat metadata should be saved.
-    """
-    metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
-    if not os.path.exists(metadata_file):
-        with open(metadata_file, "w") as f:
-            json.dump(chat, f, indent=2)
-
-def sync_chat_messages(full_chat, chat_folder):
-    """
-    Save chat messages to the specified chat folder.
-
-    Args:
-        full_chat: The full chat conversation dictionary.
-        chat_folder: The folder where the chat messages should be saved.
-    """
-    for message in full_chat["chat_messages"]:
-        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-        if not os.path.exists(message_file):
-            with open(message_file, "w") as f:
-                json.dump(message, f, indent=2)
-
-def sync_chat_artifacts(full_chat, chat_folder, provider):
-    """
-    Extract and save artifacts from the chat messages.
-
-    Args:
-        full_chat: The full chat conversation dictionary.
-        chat_folder: The folder where the artifacts should be saved.
-        provider: The API provider instance.
-    """
-    for message in full_chat["chat_messages"]:
+    artifacts = []
+    for message in chat_messages:
         if message["sender"] == "assistant":
-            artifacts = extract_artifacts(message["text"])
-            if artifacts:
-                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                save_artifacts(artifacts, chat_folder)
+            artifacts.extend(extract_artifacts_from_text(message["text"]))
+    return artifacts
+
+def extract_artifacts_from_text(text):
+    """
+    Extract artifacts from the given text using a regular expression.
+
+    Args:
+        text: The text to search for artifacts.
+
+    Returns:
+        List of dictionaries containing artifact information.
+    """
+    artifacts = []
+    pattern = re.compile(
+        r'<antArtifact\s+identifier="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)</antArtifact>',
+        re.MULTILINE,
+    )
+    matches = pattern.findall(text)
+
+    for match in matches:
+        identifier, artifact_type, title, content = match
+        artifacts.append(
+            {
+                "identifier": identifier,
+                "type": artifact_type,
+                "content": content.strip(),
+            }
+        )
+
+    return artifacts
 
 def save_artifacts(artifacts, chat_folder):
     """
@@ -155,35 +168,3 @@ def get_file_extension(artifact_type):
         "application/vnd.ant.react": "jsx",
     }
     return type_to_extension.get(artifact_type, "txt")
-
-def extract_artifacts(text):
-    """
-    Extract artifacts from the given text.
-
-    This function searches for antArtifact tags in the text and extracts
-    the artifact information, including identifier, type, and content.
-
-    Args:
-        text (str): The text to search for artifacts.
-
-    Returns:
-        list: A list of dictionaries containing artifact information.
-    """
-    artifacts = []
-    pattern = re.compile(
-        r'<antArtifact\s+identifier="([^"]+)"\s+type="([^"]+)"\s+title="([^"]+)">([\s\S]*?)</antArtifact>',
-        re.MULTILINE,
-    )
-    matches = pattern.findall(text)
-
-    for match in matches:
-        identifier, artifact_type, title, content = match
-        artifacts.append(
-            {
-                "identifier": identifier,
-                "type": artifact_type,
-                "content": content.strip(),
-            }
-        )
-
-    return artifacts
