@@ -34,6 +34,12 @@ class TestClaudeAIProvider(unittest.TestCase):
                 def getheader(self, header):
                     return self.response.get(header)
 
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
+
             return FakeResponse(mock_response)
 
         with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
@@ -71,6 +77,12 @@ class TestClaudeAIProvider(unittest.TestCase):
                 def getheader(self, header):
                     return self.response.get(header)
 
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
+
             return FakeResponse(mock_response)
 
         with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
@@ -101,6 +113,12 @@ class TestClaudeAIProvider(unittest.TestCase):
 
                 def getheader(self, header):
                     return self.response.get(header)
+
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
 
             return FakeResponse(mock_response)
 
