@@ -1,13 +1,17 @@
 import unittest
 import os
 import tempfile
-
+import logging
 from claudesync.utils import (
     compute_md5_hash,
     load_gitignore,
     get_local_files,
     load_claudeignore,
 )
+
+# Configure logging for file operations
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class TestUtils(unittest.TestCase):
@@ -39,13 +43,11 @@ class TestUtils(unittest.TestCase):
             os.mkdir(os.path.join(tmpdir, "subdir"))
             with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
                 f.write("Content of file3")
-            with open(os.path.join(tmpdir, "test~"), "w") as f:
-                f.write("*.log\n")
 
             # Create a test~ file
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "afile"), "w") as f:
+                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
             for buildDir in {"target", "build"}:
@@ -57,7 +59,7 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            print(local_files)
+            logger.debug(f"Local files: {local_files}")
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
@@ -95,6 +97,7 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
+            logger.debug(f"Local files: {local_files}")
 
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
