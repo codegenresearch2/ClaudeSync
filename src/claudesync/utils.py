@@ -15,10 +15,10 @@ config_manager = ConfigManager()
 
 def normalize_and_calculate_md5(content):
     """
-    Calculate the MD5 checksum of the given content after normalizing line endings.
+    Normalizes the line endings of the input content to Unix-style (\n) and calculates the MD5 checksum.
 
     Args:
-        content (str): The content for which to calculate the checksum.
+        content (str): The content to be normalized and for which the checksum is calculated.
 
     Returns:
         str: The hexadecimal MD5 checksum of the normalized content.
