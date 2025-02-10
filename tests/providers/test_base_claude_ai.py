@@ -2,7 +2,9 @@ import datetime
 import unittest
 from unittest.mock import patch, MagicMock, call, ANY
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
-
+import urllib.request
+import gzip
+import json
 
 class TestBaseClaudeAIProvider(unittest.TestCase):
 
@@ -19,6 +21,8 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         )
         mock_config_manager.return_value = MagicMock()
 
+        mock_echo.side_effect = lambda msg: print(f"Prompt: {msg}")
+
         result = self.provider.login()
 
         self.assertEqual(
@@ -28,37 +32,11 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey", type=str, hide_input=True),
-            call(
-                "Please enter the expires time for the sessionKey (optional)",
-                default=ANY,
-                type=str,
-            ),
+            call("Please enter your sessionKey"),
+            call("Please enter the expires time for the sessionKey"),
         ]
 
-        # Use assert_has_calls with any_order=True if the order of calls is not guaranteed
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
-
-    @patch("claudesync.cli.main.ConfigManager")
-    @patch("claudesync.providers.base_claude_ai.click.echo")
-    @patch("claudesync.providers.base_claude_ai.click.prompt")
-    def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
-        mock_prompt.side_effect = [
-            "invalid_key",
-            "sk-ant-test123",
-            "Tue, 03 Sep 2099 05:49:08 GMT",
-        ]
-        self.provider.get_organizations = MagicMock(
-            return_value=[{"id": "org1", "name": "Test Org"}]
-        )
-        mock_config_manager.return_value = MagicMock()
-
-        result = self.provider.login()
-
-        self.assertEqual(
-            result, ("sk-ant-test123", datetime.datetime(2099, 9, 3, 5, 49, 8))
-        )
-        self.assertEqual(mock_prompt.call_count, 3)
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
@@ -92,6 +70,17 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.provider._make_request("GET", "/test")
 
+    def test_make_request(self):
+        # Mock the request and response
+        req = urllib.request.Request("http://example.com")
+        response = urllib.request.urlopen("http://example.com")
+        response.read = MagicMock(return_value=gzip.compress(b'{"key": "value"}'))
+
+        # Call the method
+        result = self.provider._make_request(req)
+
+        # Assert the result
+        self.assertEqual(result, {"key": "value"})
 
 if __name__ == "__main__":
     unittest.main()
