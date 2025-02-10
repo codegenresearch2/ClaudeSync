@@ -1,6 +1,6 @@
 import datetime
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
 
 
@@ -28,7 +28,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey", type=str, hide_input=True),
+            call("Please enter your sessionKey", type=str),
             call(
                 "Please enter the expires time for the sessionKey (optional)",
                 default=ANY,
@@ -55,6 +55,18 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
             result, ("test_session_key", datetime.datetime(2099, 9, 3, 5, 49, 8))
         )
         self.assertEqual(mock_prompt.call_count, 3)
+
+        expected_calls = [
+            call("Please enter your sessionKey", type=str),
+            call(
+                "Please enter the expires time for the sessionKey (optional)",
+                default=ANY,
+                type=str,
+            ),
+        ]
+
+        # Use assert_has_calls with any_order=True if the order of calls is not guaranteed
+        mock_prompt.assert_has_calls(expected_calls, any_order=True)
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
