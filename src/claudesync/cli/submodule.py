@@ -5,10 +5,8 @@ from claudesync.exceptions import ProviderError
 from ..utils import (
     validate_and_get_provider,
     detect_submodules,
+    handle_errors,
 )
-
-# Import handle_errors decorator from the correct module
-from ..utils import handle_errors
 
 @click.group()
 def submodule():
@@ -39,7 +37,7 @@ def ls(config):
 @click.pass_obj
 @handle_errors
 def create(config):
-    """Create new projects for each detected submodule."""
+    """Create new projects for each detected submodule that doesn't already exist."""
     provider = validate_and_get_provider(config, require_project=True)
     active_organization_id = config.get("active_organization_id")
     active_project_id = config.get("active_project_id")
@@ -53,22 +51,13 @@ def create(config):
     submodule_detect_filenames = config.get("submodule_detect_filenames", [])
     submodules_with_files = detect_submodules(local_path, submodule_detect_filenames)
 
-    # Extract only the submodule paths from the list of tuples
     submodules = [submodule for submodule, _ in submodules_with_files]
 
     if not submodules:
         click.echo("No submodules detected in the current project.")
         return
 
-    # Fetch all remote projects
     all_remote_projects = provider.get_projects(active_organization_id, include_archived=False)
-
-    # Find remote submodule projects
-    remote_submodule_projects = [
-        project
-        for project in all_remote_projects
-        if project["name"].startswith(f"{active_project_name}-SubModule-")
-    ]
 
     click.echo(f"Detected {len(submodules)} submodule(s). Creating projects for each:")
 
@@ -76,8 +65,9 @@ def create(config):
         submodule_name = os.path.basename(submodule)
         new_project_name = f"{active_project_name}-SubModule-{submodule_name}"
 
-        # Check if the project already exists
-        if any(project["name"] == new_project_name for project in remote_submodule_projects):
+        existing_project = next((project for project in all_remote_projects if project["name"] == new_project_name), None)
+
+        if existing_project:
             click.echo(f"{i}. Project '{new_project_name}' already exists for submodule '{submodule_name}'")
             continue
 
@@ -95,4 +85,4 @@ def create(config):
                 f"Failed to create project for submodule '{submodule_name}': {str(e)}"
             )
 
-    click.echo("\nSubmodule projects created successfully. You can now select and sync these projects individually.")
+    click.echo("Submodule projects created successfully. You can now select and sync these projects individually.")
