@@ -79,7 +79,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             content = e.read().decode("utf-8")
             self.logger.debug(f"Response content: {content}")
         except UnicodeDecodeError:
-            self.logger.debug(f"Response content could not be decoded.")
+            content = e.read().decode("iso-8859-1")
+            self.logger.debug(f"Response content (iso-8859-1): {content}")
 
         error_msg = f"HTTP {e.code} error: {e.reason}"
         if e.code == 403:
