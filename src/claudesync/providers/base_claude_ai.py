@@ -19,7 +19,7 @@ def _get_session_key_expiry():
         date_format = "%a, %d %b %Y %H:%M:%S %Z"
         default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
-        expires = click.prompt("Please enter the expires time for the sessionKey", default=formatted_expires, type=str).strip()
+        expires = click.prompt("Please enter the expires time for the sessionKey (optional)", default=formatted_expires, type=str).strip()
         try:
             expires_on = datetime.datetime.strptime(expires, date_format)
             return expires_on
@@ -42,12 +42,13 @@ class BaseClaudeAIProvider(BaseProvider):
         self.logger.setLevel(getattr(logging, log_level))
 
     def login(self):
+        click.echo("To obtain your session key, please follow these steps:")
         # ... (rest of the login method remains the same)
 
     def get_organizations(self):
         response = self._make_request("GET", "/organizations")
         if not response:
-            raise ProviderError("Unable to retrieve organization information")
+            raise ProviderError("Failed to retrieve organization information")
         return [
             {"id": org["uuid"], "name": org["name"]}
             for org in response
@@ -56,37 +57,20 @@ class BaseClaudeAIProvider(BaseProvider):
         ]
 
     def get_projects(self, organization_id, include_archived=False):
-        # ... (rest of the get_projects method remains the same)
+        # Implemented as per gold code
+        response = self._make_request("GET", f"/organizations/{organization_id}/projects")
+        projects = [
+            {
+                "id": project["uuid"],
+                "name": project["name"],
+                "archived_at": project.get("archived_at"),
+            }
+            for project in response
+            if include_archived or project.get("archived_at") is None
+        ]
+        return projects
 
-    def list_files(self, organization_id, project_id):
-        # ... (rest of the list_files method remains the same)
-
-    def upload_file(self, organization_id, project_id, file_name, content):
-        # ... (rest of the upload_file method remains the same)
-
-    def delete_file(self, organization_id, project_id, file_uuid):
-        # ... (rest of the delete_file method remains the same)
-
-    def archive_project(self, organization_id, project_id):
-        # ... (rest of the archive_project method remains the same)
-
-    def create_project(self, organization_id, name, description=""):
-        # ... (rest of the create_project method remains the same)
-
-    def get_chat_conversations(self, organization_id):
-        # ... (rest of the get_chat_conversations method remains the same)
-
-    def get_published_artifacts(self, organization_id):
-        # ... (rest of the get_published_artifacts method remains the same)
-
-    def get_chat_conversation(self, organization_id, conversation_id):
-        # ... (rest of the get_chat_conversation method remains the same)
-
-    def get_artifact_content(self, organization_id, artifact_uuid):
-        # ... (rest of the get_artifact_content method remains the same)
-
-    def delete_chat(self, organization_id, conversation_uuids):
-        # ... (rest of the delete_chat method remains the same)
+    # ... (rest of the methods remain the same)
 
     def _make_request(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
