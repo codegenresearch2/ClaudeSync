@@ -29,17 +29,14 @@ def retry_on_403(max_retries=3, delay=1):
         def wrapper(*args, **kwargs):
             # Handle the case where self might not be available
             instance = args[0] if args else None
-            instance_logger = getattr(instance, 'logger', None)
-            logger_to_use = instance_logger if instance_logger else logger
+            logger_to_use = getattr(instance, 'logger', logger)
 
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
-                        logger_to_use.warning(
-                            f"Received 403 error on attempt {attempt + 1} of {max_retries}. Retrying in {delay} seconds..."
-                        )
+                        logger_to_use.warning(f"Received 403 error, retrying in {delay} seconds...")
                         time.sleep(delay)
                     else:
                         raise
@@ -72,7 +69,7 @@ class SyncManager:
         # Check for existing remote projects
         self.check_existing_remote_projects()
 
-    @retry_on_403(max_retries=3, delay=1)
+    @retry_on_403
     def check_existing_remote_projects(self):
         """
         Check for existing remote projects and handle any errors more robustly.
