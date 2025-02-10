@@ -21,35 +21,15 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.read.return_value = json.dumps({"key": "value"}).encode('utf-8')
-        mock_response.getheader.side_effect = lambda header: {
-            "Content-Type": "application/json"
-        }.get(header)
+        mock_response.headers = {"Content-Type": "application/json"}
 
-        def urlopen_side_effect(*args, **kwargs):
-            class FakeResponse:
-                def __init__(self, response):
-                    self.response = response
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_get_session_key.return_value = "sk-ant-1234"
 
-                def read(self):
-                    return self.response
+        result = self.provider._make_request("GET", "/test")
 
-                def getheader(self, header):
-                    return self.response.getheader(header)
-
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
-
-            return FakeResponse(mock_response)
-
-        with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
-            mock_get_session_key.return_value = "sk-ant-1234"
-            result = self.provider._make_request("GET", "/test")
-
-            self.assertEqual(result, {"key": "value"})
-            mock_get_session_key.assert_called_once()
+        self.assertEqual(result, {"key": "value"})
+        mock_get_session_key.assert_called_once()
 
     @patch("urllib.request.urlopen")
     def test_make_request_failure(self, mock_urlopen):
@@ -64,70 +44,28 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 403
         mock_response.read.return_value = b'{"error": "Forbidden"}'
-        mock_response.getheader.side_effect = lambda header: {
-            "Content-Type": "application/json"
-        }.get(header)
+        mock_response.headers = {"Content-Type": "application/json"}
 
-        def urlopen_side_effect(*args, **kwargs):
-            class FakeResponse:
-                def __init__(self, response):
-                    self.response = response
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_get_session_key.return_value = "sk-ant-1234"
 
-                def read(self):
-                    return self.response
+        with self.assertRaises(ProviderError) as context:
+            self.provider._make_request("GET", "/test")
 
-                def getheader(self, header):
-                    return self.response.getheader(header)
-
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
-
-            return FakeResponse(mock_response)
-
-        with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
-            mock_get_session_key.return_value = "sk-ant-1234"
-
-            with self.assertRaises(urllib.error.HTTPError) as context:
-                self.provider._make_request("GET", "/test")
-
-            self.assertEqual(context.exception.code, 403)
+        self.assertIn("403 Forbidden error", str(context.exception))
 
     @patch("urllib.request.urlopen")
     def test_make_request_gzip_response(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
-        mock_response.getheader.side_effect = lambda header: {
-            "Content-Type": "application/json",
-            "Content-Encoding": "gzip"
-        }.get(header)
+        mock_response.headers = {"Content-Type": "application/json", "Content-Encoding": "gzip"}
 
-        def urlopen_side_effect(*args, **kwargs):
-            class FakeResponse:
-                def __init__(self, response):
-                    self.response = response
+        mock_urlopen.return_value.__enter__.return_value = mock_response
 
-                def read(self):
-                    return self.response
+        result = self.provider._make_request("GET", "/test")
 
-                def getheader(self, header):
-                    return self.response.getheader(header)
-
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
-
-            return FakeResponse(mock_response)
-
-        with patch("urllib.request.urlopen", side_effect=urlopen_side_effect):
-            result = self.provider._make_request("GET", "/test")
-
-            self.assertEqual(result, {"key": "value"})
+        self.assertEqual(result, {"key": "value"})
 
 if __name__ == "__main__":
     unittest.main()
