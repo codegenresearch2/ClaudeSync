@@ -1,5 +1,4 @@
 import os
-
 import click
 from requests import HTTPError
 from claudesync.exceptions import ProviderError
@@ -12,6 +11,12 @@ from ..utils import (
     detect_submodules,
     validate_and_store_local_path,
 )
+
+# Check if requests module is available
+try:
+    import requests
+except ImportError:
+    raise ImportError("The 'requests' library is required for this application to function correctly. Please install it using pip.")
 
 @click.group()
 def project():
@@ -37,12 +42,6 @@ def create(config):
     title = click.prompt("Enter a title for your new project", default=default_name)
     description = click.prompt("Enter the project description (optional)", default="")
 
-    # Check if project already exists
-    existing_projects = provider.get_projects(active_organization_id, include_archived=False)
-    if any(project['name'] == title for project in existing_projects):
-        click.echo(f"Project with name '{title}' already exists. Please choose a different name.")
-        return
-
     try:
         new_project = provider.create_project(
             active_organization_id, title, description
@@ -59,8 +58,6 @@ def create(config):
 
         validate_and_store_local_path(config)
 
-    except HTTPError as e:
-        click.echo(f"HTTP error occurred while creating project: {str(e)}")
     except ProviderError as e:
         click.echo(f"Failed to create project: {str(e)}")
 
