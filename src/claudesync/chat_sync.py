@@ -48,36 +48,60 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
+        if not should_process_chat(chat, active_project_id, sync_all):
+            logger.debug(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
+            continue
+
         chat_id = chat["uuid"]
         chat_folder = os.path.join(chat_destination, chat_id)
         os.makedirs(chat_folder, exist_ok=True)
 
-        if not sync_all and chat.get("project") and chat["project"].get("uuid") != active_project_id:
-            logger.debug(f"Skipping chat {chat_id} as it doesn't belong to the active project")
-            continue
-
         logger.info(f"Processing chat {chat_id}")
-
-        metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
-        if not os.path.exists(metadata_file):
-            with open(metadata_file, "w") as f:
-                json.dump(chat, f, indent=2)
-
-        full_chat = provider.get_chat_conversation(organization_id, chat_id)
-        for message in full_chat["chat_messages"]:
-            message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-            if not os.path.exists(message_file):
-                with open(message_file, "w") as f:
-                    json.dump(message, f, indent=2)
-
-            if message["sender"] == "assistant":
-                artifacts = extract_artifacts(message["text"])
-                if artifacts:
-                    logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                    save_artifacts(artifacts, chat_folder)
+        sync_chat(provider, config, chat, chat_folder)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
+def should_process_chat(chat, active_project_id, sync_all):
+    """
+    Determine if a chat should be processed based on the active project ID and sync_all flag.
+
+    Args:
+        chat: The chat dictionary.
+        active_project_id: The ID of the active project.
+        sync_all: If True, process all chats; otherwise, process only chats belonging to the active project.
+
+    Returns:
+        bool: True if the chat should be processed, False otherwise.
+    """
+    return sync_all or (chat.get("project") and chat["project"].get("uuid") == active_project_id)
+
+def sync_chat(provider, config, chat, chat_folder):
+    """
+    Synchronize a single chat and its artifacts.
+
+    Args:
+        provider: The API provider instance.
+        config: The configuration manager instance.
+        chat: The chat dictionary.
+        chat_folder: The folder where the chat data should be saved.
+    """
+    metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
+    if not os.path.exists(metadata_file):
+        with open(metadata_file, "w") as f:
+            json.dump(chat, f, indent=2)
+
+    full_chat = provider.get_chat_conversation(config["active_organization_id"], chat["uuid"])
+    for message in full_chat["chat_messages"]:
+        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+        if not os.path.exists(message_file):
+            with open(message_file, "w") as f:
+                json.dump(message, f, indent=2)
+
+        if message["sender"] == "assistant":
+            artifacts = extract_artifacts(message["text"])
+            if artifacts:
+                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+                save_artifacts(artifacts, chat_folder)
 
 def save_artifacts(artifacts, chat_folder):
     """
@@ -95,7 +119,6 @@ def save_artifacts(artifacts, chat_folder):
         artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{file_extension}")
         with open(artifact_file, "w") as f:
             f.write(artifact["content"])
-
 
 def get_file_extension(artifact_type):
     """
@@ -115,7 +138,6 @@ def get_file_extension(artifact_type):
         "application/vnd.ant.react": "jsx",
     }
     return type_to_extension.get(artifact_type, "txt")
-
 
 def extract_artifacts(text):
     """
