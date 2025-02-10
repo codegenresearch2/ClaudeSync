@@ -18,14 +18,12 @@ def ls(config):
     active_organization_id = config.get("active_organization_id")
     active_project_id = config.get("active_project_id")
     files = provider.list_files(active_organization_id, active_project_id)
-    output = ""
     if not files:
-        output += "No files found in the active project.\n"
+        click.echo("No files found in the active project.")
     else:
-        output += f"Files in project '{config.get('active_project_name')}' (ID: {active_project_id}):\n"
+        click.echo(f"Files in project '{config.get('active_project_name')}' (ID: {active_project_id}):")
         for file in files:
-            output += f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})\n"
-    click.echo(output)
+            click.echo(f"  - {file['file_name']} (ID: {file['uuid']}, Created: {file['created_at']})")
 
 @click.command()
 @click.pass_obj
@@ -45,7 +43,7 @@ def sync(config):
     # Sync chats
     sync_chats(provider, config)
 
-    click.echo("Synchronization completed successfully.")
+    click.echo("Projects and chats synchronized successfully.")
 
 def validate_local_path(local_path):
     if not local_path:
