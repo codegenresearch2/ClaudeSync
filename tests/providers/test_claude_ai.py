@@ -17,12 +17,15 @@ class TestClaudeAIProvider(unittest.TestCase):
         self.mock_config = MagicMock()
 
     @patch("urllib.request.urlopen")
-    def test_make_request_success(self, mock_urlopen):
+    @patch("claudesync.config_manager.ConfigManager.get_session_key")
+    def test_make_request_success(self, mock_get_session_key, mock_urlopen):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.headers = {'Content-Type': 'application/json'}
         mock_response.read.return_value = json.dumps({"key": "value"}).encode('utf-8')
         mock_urlopen.return_value = mock_response
+
+        mock_get_session_key.return_value = "sk-ant-1234"
 
         result = self.provider._make_request("GET", "/test")
 
