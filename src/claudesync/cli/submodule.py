@@ -80,19 +80,18 @@ def create(config):
 
         if existing_project:
             click.echo(f"{i}. Project for submodule '{submodule_name}' already exists (ID: {existing_project['id']}). Skipping creation.")
-            continue
-
-        try:
-            new_project = provider.create_project(
-                active_organization_id, new_project_name, description
-            )
-            click.echo(
-                f"{i}. Created project '{new_project_name}' (ID: {new_project['uuid']}) for submodule '{submodule_name}'"
-            )
-        except ProviderError as e:
-            click.echo(
-                f"Failed to create project for submodule '{submodule_name}': {str(e)}"
-            )
+        else:
+            try:
+                new_project = provider.create_project(
+                    active_organization_id, new_project_name, description
+                )
+                click.echo(
+                    f"{i}. Created project '{new_project_name}' (ID: {new_project['uuid']}) for submodule '{submodule_name}'"
+                )
+            except ProviderError as e:
+                click.echo(
+                    f"Failed to create project for submodule '{submodule_name}': {str(e)}"
+                )
 
     click.echo(
         "\nSubmodule projects creation process completed. Check the output above for details."
