@@ -15,31 +15,21 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
             "Accept-Encoding": "gzip",
-        }
-        cookies = {
-            "sessionKey": self.session_key,
+            "Cookie": f"sessionKey={self.session_key}",
         }
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
             if data:
                 self.logger.debug(f"Request data: {data}")
 
             # Prepare the request
-            req = urllib.request.Request(url, method=method)
-            for key, value in headers.items():
-                req.add_header(key, value)
-
-            # Add cookies to the request
-            cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-            req.add_header("Cookie", cookie_string)
+            req = urllib.request.Request(url, method=method, headers=headers)
 
             # Add data if present
             if data:
-                json_data = json.dumps(data).encode("utf-8")
-                req.data = json_data
+                req.data = json.dumps(data).encode("utf-8")
 
             # Make the request
             with urllib.request.urlopen(req) as response:
@@ -121,9 +111,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "Cookie": f"sessionKey={self.session_key}",
         }
 
-        req = urllib.request.Request(url, method=method)
-        for key, value in headers.items():
-            req.add_header(key, value)
+        req = urllib.request.Request(url, method=method, headers=headers)
 
         if data:
             req.data = json.dumps(data).encode("utf-8")
