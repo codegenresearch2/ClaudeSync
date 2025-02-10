@@ -39,7 +39,7 @@ def ls(config):
 @click.pass_obj
 @handle_errors
 def create(config):
-    """Create new projects for each detected submodule."""
+    """Create new projects for each detected submodule that does not already exist remotely."""
     provider = validate_and_get_provider(config, require_project=True)
     active_organization_id = config.get("active_organization_id")
     active_project_id = config.get("active_project_id")
@@ -79,7 +79,7 @@ def create(config):
         )
 
         if existing_project:
-            click.echo(f"{i}. Project for submodule '{submodule_name}' already exists. Skipping creation.")
+            click.echo(f"{i}. Project for submodule '{submodule_name}' already exists (ID: {existing_project['id']}). Skipping creation.")
             continue
 
         try:
