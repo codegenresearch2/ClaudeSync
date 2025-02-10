@@ -42,9 +42,11 @@ class TestUtils(unittest.TestCase):
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
 
-            # Create a .gitignore file
+            # Create .gitignore and .claudeignore files
             with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
                 f.write("*.log\n/build\ntarget")
+            with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
+                f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
             expected_files = {
@@ -56,6 +58,7 @@ class TestUtils(unittest.TestCase):
             self.assertIn("file2.py", local_files)
             self.assertIn("subdir/file3.txt", local_files)
             self.assertNotIn(".gitignore", local_files)
+            self.assertNotIn(".claudeignore", local_files)
             self.assertEqual(len(local_files), 3)
 
     def test_load_claudeignore(self):
@@ -81,7 +84,7 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "build", "output.txt"), "w") as f:
                 f.write("Build output")
 
-            # Create a .claudeignore file
+            # Create .claudeignore file
             with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
                 f.write("*.log\n/build/\n")
 
