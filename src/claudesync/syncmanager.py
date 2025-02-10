@@ -10,6 +10,9 @@ from tqdm import tqdm
 from claudesync.utils import compute_md5_hash
 from claudesync.exceptions import ProviderError
 
+# Initialize logger at the module level
+logger = logging.getLogger(__name__)
+
 def retry_on_403(max_retries=3, delay=1):
     """
     Decorator to retry a function on 403 Forbidden error.
@@ -24,13 +27,17 @@ def retry_on_403(max_retries=3, delay=1):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            logger = getattr(args[0], 'logger', None) or logging.getLogger(__name__)
+            # Handle the case where self might not be available
+            instance = args[0] if args else None
+            instance_logger = getattr(instance, 'logger', None)
+            logger_to_use = instance_logger if instance_logger else logger
+
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
-                        logger.warning(
+                        logger_to_use.warning(
                             f"Received 403 error on attempt {attempt + 1} of {max_retries}. Retrying in {delay} seconds..."
                         )
                         time.sleep(delay)
@@ -61,7 +68,6 @@ class SyncManager:
         self.two_way_sync = config.get("two_way_sync", False)
         self.max_retries = 3  # Maximum number of retries for 403 errors
         self.retry_delay = 1  # Delay between retries in seconds
-        self.logger = logging.getLogger(__name__)
 
         # Check for existing remote projects
         self.check_existing_remote_projects()
@@ -73,6 +79,6 @@ class SyncManager:
         """
         projects = self.provider.get_projects(self.active_organization_id, include_archived=False)
         if not projects:
-            self.logger.info("No active projects found. Please create a new project.")
+            logger.info("No active projects found. Please create a new project.")
 
     # Rest of the code remains the same
