@@ -58,7 +58,6 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            print(local_files)
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
