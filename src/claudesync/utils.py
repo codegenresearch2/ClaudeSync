@@ -1,11 +1,7 @@
 import os
 import hashlib
-from functools import wraps
-import urllib.request
-import gzip
-import io
-import click
 import pathspec
+import click
 import logging
 from claudesync.exceptions import ConfigurationError, ProviderError
 from claudesync.provider_factory import get_provider
@@ -14,39 +10,80 @@ from claudesync.config_manager import ConfigManager
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
 
-
 def normalize_and_calculate_md5(content):
+    """
+    Calculate the MD5 checksum of the given content after normalizing line endings.
+
+    Args:
+        content (str): The content for which to calculate the checksum.
+
+    Returns:
+        str: The hexadecimal MD5 checksum of the normalized content.
+    """
     normalized_content = content.replace("\r\n", "\n").replace("\r", "\n").strip()
     return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
 
-
 def load_gitignore(base_path):
+    """
+    Loads and parses the .gitignore file from the specified base path.
+
+    Args:
+        base_path (str): The base directory path where the .gitignore file is located.
+
+    Returns:
+        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .gitignore file
+                                    if the file exists; otherwise, None.
+    """
     gitignore_path = os.path.join(base_path, ".gitignore")
     if os.path.exists(gitignore_path):
         with open(gitignore_path, "r") as f:
             return pathspec.PathSpec.from_lines("gitwildmatch", f)
     return None
 
-
 def is_text_file(file_path, sample_size=8192):
+    """
+    Determines if a file is a text file by checking for the absence of null bytes.
+
+    Args:
+        file_path (str): The path to the file to be checked.
+        sample_size (int, optional): The number of bytes to read from the file for checking.
+                                     Defaults to 8192.
+
+    Returns:
+        bool: True if the file is likely a text file, False if it is likely binary or an error occurred.
+    """
     try:
-        with urllib.request.urlopen(file_path) as response:
-            if response.info().get("Content-Encoding") == "gzip":
-                buf = io.BytesIO(response.read())
-                f = gzip.GzipFile(fileobj=buf)
-                content = f.read(sample_size)
-            else:
-                content = response.read(sample_size)
-            return b"\x00" not in content
-    except Exception:
+        with open(file_path, "rb") as file:
+            return b"\x00" not in file.read(sample_size)
+    except IOError:
         return False
 
-
 def compute_md5_hash(content):
+    """
+    Computes the MD5 hash of the given content.
+
+    Args:
+        content (str): The content for which to compute the MD5 hash.
+
+    Returns:
+        str: The hexadecimal MD5 hash of the input content.
+    """
     return hashlib.md5(content.encode("utf-8")).hexdigest()
 
-
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
+    """
+    Determines whether a file should be processed based on various criteria.
+
+    Args:
+        file_path (str): The full path to the file.
+        filename (str): The name of the file.
+        gitignore (pathspec.PathSpec or None): A PathSpec object containing .gitignore patterns, if available.
+        base_path (str): The base directory path of the project.
+        claudeignore (pathspec.PathSpec or None): A PathSpec object containing .claudeignore patterns, if available.
+
+    Returns:
+        bool: True if the file should be processed, False otherwise.
+    """
     max_file_size = config_manager.get("max_file_size", 32 * 1024)
     if os.path.getsize(file_path) > max_file_size:
         return False
@@ -59,23 +96,36 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
         return False
     return is_text_file(file_path)
 
-
 def process_file(file_path):
+    """
+    Reads the content of a file and computes its MD5 hash.
+
+    Args:
+        file_path (str): The path to the file to be processed.
+
+    Returns:
+        str or None: The MD5 hash of the file's content if successful, None otherwise.
+    """
     try:
-        with urllib.request.urlopen(file_path) as response:
-            if response.info().get("Content-Encoding") == "gzip":
-                buf = io.BytesIO(response.read())
-                f = gzip.GzipFile(fileobj=buf)
-                content = f.read()
-            else:
-                content = response.read()
-            return compute_md5_hash(content.decode("utf-8"))
+        with open(file_path, "r", encoding="utf-8") as file:
+            content = file.read()
+            return compute_md5_hash(content)
+    except UnicodeDecodeError:
+        logger.debug(f"Unable to read {file_path} as UTF-8 text. Skipping.")
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {str(e)}")
     return None
 
-
 def get_local_files(local_path):
+    """
+    Retrieves a dictionary of local files within a specified path, applying various filters.
+
+    Args:
+        local_path (str): The base directory path to search for files.
+
+    Returns:
+        dict: A dictionary where keys are relative file paths, and values are MD5 hashes of the file contents.
+    """
     gitignore = load_gitignore(local_path)
     claudeignore = load_claudeignore(local_path)
     files = {}
@@ -99,6 +149,12 @@ def get_local_files(local_path):
                     files[rel_path] = file_hash
     return files
 
+def load_claudeignore(base_path):
+    claudeignore_path = os.path.join(base_path, ".claudeignore")
+    if os.path.exists(claudeignore_path):
+        with open(claudeignore_path, "r") as f:
+            return pathspec.PathSpec.from_lines("gitwildmatch", f)
+    return None
 
 def handle_errors(func):
     @wraps(func)
@@ -108,7 +164,6 @@ def handle_errors(func):
         except (ConfigurationError, ProviderError) as e:
             click.echo(f"Error: {str(e)}")
     return wrapper
-
 
 def validate_and_get_provider(config, require_org=True, require_project=False):
     active_provider = config.get("active_provider")
@@ -132,7 +187,6 @@ def validate_and_get_provider(config, require_org=True, require_project=False):
     session_key_expiry = config.get("session_key_expiry")
     return get_provider(active_provider, session_key, session_key_expiry)
 
-
 def validate_and_store_local_path(config):
     def get_default_path():
         return os.getcwd()
@@ -153,11 +207,3 @@ def validate_and_store_local_path(config):
             break
         else:
             click.echo("Please enter an absolute path.")
-
-
-def load_claudeignore(base_path):
-    claudeignore_path = os.path.join(base_path, ".claudeignore")
-    if os.path.exists(claudeignore_path):
-        with open(claudeignore_path, "r") as f:
-            return pathspec.PathSpec.from_lines("gitwildmatch", f)
-    return None
