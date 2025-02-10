@@ -18,7 +18,8 @@ class TestUtils(unittest.TestCase):
     def test_load_gitignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             gitignore_content = "*.log\n/node_modules\n"
-            with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
+            gitignore_path = os.path.join(tmpdir, ".gitignore")
+            with open(gitignore_path, "w") as f:
                 f.write(gitignore_content)
 
             gitignore = load_gitignore(tmpdir)
@@ -30,32 +31,44 @@ class TestUtils(unittest.TestCase):
     def test_get_local_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create some test files
-            with open(os.path.join(tmpdir, "file1.txt"), "w") as f:
+            file1_path = os.path.join(tmpdir, "file1.txt")
+            with open(file1_path, "w") as f:
                 f.write("Content of file1")
-            with open(os.path.join(tmpdir, "file2.py"), "w") as f:
+            file2_path = os.path.join(tmpdir, "file2.py")
+            with open(file2_path, "w") as f:
                 f.write("print('Hello, World!')")
-            os.mkdir(os.path.join(tmpdir, "subdir"))
-            with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
+            subdir_path = os.path.join(tmpdir, "subdir")
+            os.mkdir(subdir_path)
+            file3_path = os.path.join(subdir_path, "file3.txt")
+            with open(file3_path, "w") as f:
                 f.write("Content of file3")
 
             # Create a test~ file directly in the temporary directory
-            with open(os.path.join(tmpdir, "test~"), "w") as f:
+            test_tilde_path = os.path.join(tmpdir, "test~")
+            with open(test_tilde_path, "w") as f:
                 f.write("*.log\n")
 
             # Include the specific version control system directories
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
-                os.mkdir(os.path.join(tmpdir, vcs))
+                vcs_path = os.path.join(tmpdir, vcs)
+                os.mkdir(vcs_path)
 
             for buildDir in {"target", "build"}:
-                os.mkdir(os.path.join(tmpdir, buildDir))
-                with open(os.path.join(tmpdir, buildDir, "output.txt"), "w") as f:
+                build_dir_path = os.path.join(tmpdir, buildDir)
+                os.mkdir(build_dir_path)
+                build_output_path = os.path.join(build_dir_path, "output.txt")
+                with open(build_output_path, "w") as f:
                     f.write("Build output")
 
-            with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
+            gitignore_path = os.path.join(tmpdir, ".gitignore")
+            with open(gitignore_path, "w") as f:
                 f.write("*.log\n/build\ntarget")
 
+            claudeignore_path = os.path.join(tmpdir, ".claudeignore")
+            with open(claudeignore_path, "w") as f:
+                f.write("*.log\n/build/\n")
+
             local_files = get_local_files(tmpdir)
-            print(f"Local files: {local_files}")  # Added print statement for debugging
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
             self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
@@ -67,7 +80,8 @@ class TestUtils(unittest.TestCase):
     def test_load_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             claudeignore_content = "*.log\n/build/\n"
-            with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
+            claudeignore_path = os.path.join(tmpdir, ".claudeignore")
+            with open(claudeignore_path, "w") as f:
                 f.write(claudeignore_content)
 
             claudeignore = load_claudeignore(tmpdir)
@@ -79,16 +93,21 @@ class TestUtils(unittest.TestCase):
     def test_get_local_files_with_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create some test files
-            with open(os.path.join(tmpdir, "file1.txt"), "w") as f:
+            file1_path = os.path.join(tmpdir, "file1.txt")
+            with open(file1_path, "w") as f:
                 f.write("Content of file1")
-            with open(os.path.join(tmpdir, "file2.log"), "w") as f:
+            file2_log_path = os.path.join(tmpdir, "file2.log")
+            with open(file2_log_path, "w") as f:
                 f.write("Log content")
-            os.mkdir(os.path.join(tmpdir, "build"))
-            with open(os.path.join(tmpdir, "build", "output.txt"), "w") as f:
+            build_path = os.path.join(tmpdir, "build")
+            os.mkdir(build_path)
+            build_output_path = os.path.join(build_path, "output.txt")
+            with open(build_output_path, "w") as f:
                 f.write("Build output")
 
             # Create a .claudeignore file
-            with open(os.path.join(tmpdir, ".claudeignore"), "w") as f:
+            claudeignore_path = os.path.join(tmpdir, ".claudeignore")
+            with open(claudeignore_path, "w") as f:
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
