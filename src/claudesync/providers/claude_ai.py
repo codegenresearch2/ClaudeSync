@@ -9,24 +9,7 @@ from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
 
 
-def retry_on_exception(max_retries=3, delay=1):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            for i in range(max_retries):
-                try:
-                    return func(self, *args, **kwargs)
-                except Exception as e:
-                    self.logger.warning(f"Retry attempt {i+1} failed: {str(e)}")
-                    if i == max_retries - 1:
-                        raise
-                    time.sleep(delay)
-        return wrapper
-    return decorator
-
-
 class ClaudeAIProvider(BaseClaudeAIProvider):
-    @retry_on_exception(max_retries=5, delay=2)
     def _make_request(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
@@ -66,7 +49,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 self.logger.debug(f"Response headers: {response.headers}")
 
                 # Handle gzip encoding
-                if response.headers.get("Content-Encoding") == "gzip":
+                content_encoding = response.headers.get("Content-Encoding", "")
+                if content_encoding == "gzip":
                     content = gzip.decompress(response.read())
                 else:
                     content = response.read()
@@ -77,7 +61,14 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 if not content:
                     return None
 
-                return json.loads(content_str)
+                try:
+                    return json.loads(content_str)
+                except json.JSONDecodeError as json_err:
+                    error_message = (
+                        f"Failed to parse JSON response: {content_str}. Reason: {json_err}. Request headers: {headers}"
+                    )
+                    self.logger.error(error_message)
+                    raise ProviderError(error_message)
 
         except urllib.error.HTTPError as e:
             self.handle_http_error(e)
@@ -85,15 +76,17 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             self.logger.error(f"URL Error: {str(e)}")
             raise ProviderError(f"API request failed: {str(e)}")
         except json.JSONDecodeError as json_err:
-            self.logger.error(f"Failed to parse JSON response: {str(json_err)}")
-            self.logger.error(f"Response content: {content_str}")
-            raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
+            self.logger.error(f"Failed to parse JSON response: {json_err}")
+            raise ProviderError(f"Invalid JSON response from API: {json_err}")
 
     def handle_http_error(self, e):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-        content = e.read().decode("utf-8")
+        try:
+            content = e.read().decode("utf-8")
+        except UnicodeDecodeError:
+            content = e.read().decode("iso-8859-1")
         self.logger.debug(f"Response content: {content}")
         if e.code == 403:
             error_msg = (
@@ -119,7 +112,6 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             raise ProviderError("HTTP 429: Too Many Requests")
         raise ProviderError(f"API request failed: {str(e)}")
 
-    @retry_on_exception(max_retries=3, delay=1)
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
