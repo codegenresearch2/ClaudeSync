@@ -72,7 +72,7 @@ class BaseClaudeAIProvider(BaseProvider):
             try:
                 organizations = self.get_organizations()
                 if organizations:
-                    return self.session_key, self.session_key_expiry
+                    return (self.session_key, self.session_key_expiry)
             except ProviderError as e:
                 click.echo(e)
                 click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
@@ -90,7 +90,7 @@ class BaseClaudeAIProvider(BaseProvider):
 
     def get_projects(self, organization_id, include_archived=False):
         response = self._make_request("GET", f"/organizations/{organization_id}/projects")
-        projects = [
+        return [
             {
                 "id": project["uuid"],
                 "name": project["name"],
@@ -99,7 +99,6 @@ class BaseClaudeAIProvider(BaseProvider):
             for project in response
             if include_archived or project.get("archived_at") is None
         ]
-        return projects
 
     def list_files(self, organization_id, project_id):
         response = self._make_request("GET", f"/organizations/{organization_id}/projects/{project_id}/docs")
