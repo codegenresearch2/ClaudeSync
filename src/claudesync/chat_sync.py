@@ -47,6 +47,29 @@ def save_artifacts(artifacts, chat_folder, message):
             logger.info(f"Artifact file {artifact_file} already exists, skipping write.")
 
 
+def process_chat_messages(provider, config, chat, chat_folder):
+    """
+    Process and save chat messages and artifacts.
+
+    Args:
+        provider: The API provider instance.
+        config: The configuration manager instance.
+        chat (dict): The chat metadata.
+        chat_folder (str): The folder where the chat data will be saved.
+    """
+    # Fetch full chat conversation
+    logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
+    full_chat = provider.get_chat_conversation(chat["organization_id"], chat["uuid"])
+
+    # Process each message in the chat
+    for message in full_chat["chat_messages"]:
+        if message["sender"] == "assistant":
+            artifacts = extract_artifacts(message["text"])
+            logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+            save_artifacts(artifacts, chat_folder, message)
+        save_message(chat_folder, message)
+
+
 def sync_chat(provider, config, chat, chat_destination):
     """
     Synchronize a single chat and its artifacts.
@@ -64,17 +87,7 @@ def sync_chat(provider, config, chat, chat_destination):
     with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
         json.dump(chat, f, indent=2)
 
-    # Fetch full chat conversation
-    logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
-    full_chat = provider.get_chat_conversation(chat["organization_id"], chat["uuid"])
-
-    # Process each message in the chat
-    for message in full_chat["chat_messages"]:
-        if message["sender"] == "assistant":
-            artifacts = extract_artifacts(message["text"])
-            logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-            save_artifacts(artifacts, chat_folder, message)
-        save_message(chat_folder, message)
+    process_chat_messages(provider, config, chat, chat_folder)
 
 
 def sync_chats(provider, config, sync_all=False):
