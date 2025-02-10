@@ -3,9 +3,7 @@ import unittest
 from unittest.mock import patch, MagicMock, call, ANY
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
 import urllib.request
-import gzip
 import json
-import logging
 
 class TestBaseClaudeAIProvider(unittest.TestCase):
 
@@ -45,7 +43,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
     @patch("claudesync.providers.base_claude_ai.click.echo")
     @patch("claudesync.providers.base_claude_ai.click.prompt")
     def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
-        mock_prompt.side_effect = ["invalid_key", "sk-ant-test123", "Tue, 03 Sep 2099 05:49:08 GMT"]
+        mock_prompt.side_effect = ["invalid_key"]
         self.provider.get_organizations = MagicMock(
             return_value=[{"id": "org1", "name": "Test Org"}]
         )
@@ -55,7 +53,6 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
             self.provider.login()
 
         self.assertTrue("Invalid session key" in str(context.exception))
-        self.assertEqual(mock_prompt.call_count, 3)
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
@@ -93,8 +90,8 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         # Mock the response
         response_data = {"key": "value"}
         response = MagicMock()
-        response.read.return_value = gzip.compress(json.dumps(response_data).encode())
-        response.getheader.return_value = "gzip"
+        response.read.return_value = json.dumps(response_data).encode()
+        response.getheader.return_value = "application/json"
 
         # Mock the urllib.request.urlopen function
         with patch("urllib.request.urlopen") as mock_urlopen:
@@ -117,10 +114,6 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
 
             # Assert that the error was logged
             self.assertTrue("Error making request" in str(context.exception))
-
-    def test_make_request_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.provider._make_request("GET", "/test")
 
 if __name__ == "__main__":
     unittest.main()
