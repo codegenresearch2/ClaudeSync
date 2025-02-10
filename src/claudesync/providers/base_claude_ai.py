@@ -41,7 +41,38 @@ class BaseClaudeAIProvider(BaseProvider):
         self.logger.setLevel(getattr(logging, log_level))
 
     def login(self):
-        # ... (rest of the login method remains unchanged)
+        click.echo("To obtain your session key, please follow these steps:")
+        click.echo("1. Open your web browser and go to https://claude.ai")
+        click.echo("2. Log in to your Claude account if you haven't already")
+        click.echo("3. Once logged in, open your browser's developer tools:")
+        click.echo("   - Chrome/Edge: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
+        click.echo("   - Firefox: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
+        click.echo("   - Safari: Enable developer tools in Preferences > Advanced, then press Cmd+Option+I")
+        click.echo("4. In the developer tools, go to the 'Application' tab (Chrome/Edge) or 'Storage' tab (Firefox)")
+        click.echo("5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'")
+        click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
+
+        while True:
+            session_key = click.prompt("Please enter your sessionKey", type=str)
+            if not session_key.startswith("sk-ant"):
+                click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+                continue
+            if is_url_encoded(session_key):
+                click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
+                continue
+
+            expires = _get_session_key_expiry()
+            self.session_key = session_key
+            self.session_key_expiry = expires
+            try:
+                organizations = self.get_organizations()
+                if organizations:
+                    break  # Exit the loop if get_organizations is successful
+            except ProviderError as e:
+                click.echo(e)
+                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
+
+        return self.session_key, self.session_key_expiry
 
     def get_organizations(self):
         response = self._make_request("GET", "/organizations")
@@ -55,42 +86,50 @@ class BaseClaudeAIProvider(BaseProvider):
         ]
 
     def get_projects(self, organization_id, include_archived=False):
-        # ... (rest of the get_projects method remains unchanged)
+        # Implementation of get_projects method
+        pass
 
     def list_files(self, organization_id, project_id):
-        # ... (rest of the list_files method remains unchanged)
+        # Implementation of list_files method
+        pass
 
     def upload_file(self, organization_id, project_id, file_name, content):
-        # ... (rest of the upload_file method remains unchanged)
+        # Implementation of upload_file method
+        pass
 
     def delete_file(self, organization_id, project_id, file_uuid):
-        # ... (rest of the delete_file method remains unchanged)
+        # Implementation of delete_file method
+        pass
 
     def archive_project(self, organization_id, project_id):
-        # ... (rest of the archive_project method remains unchanged)
+        # Implementation of archive_project method
+        pass
 
     def create_project(self, organization_id, name, description=""):
-        # ... (rest of the create_project method remains unchanged)
+        # Implementation of create_project method
+        pass
 
     def get_chat_conversations(self, organization_id):
-        # ... (rest of the get_chat_conversations method remains unchanged)
+        # Implementation of get_chat_conversations method
+        pass
 
     def get_published_artifacts(self, organization_id):
-        # ... (rest of the get_published_artifacts method remains unchanged)
+        # Implementation of get_published_artifacts method
+        pass
 
     def get_chat_conversation(self, organization_id, conversation_id):
-        # ... (rest of the get_chat_conversation method remains unchanged)
+        # Implementation of get_chat_conversation method
+        pass
 
     def get_artifact_content(self, organization_id, artifact_uuid):
-        # ... (rest of the get_artifact_content method remains unchanged)
+        # Implementation of get_artifact_content method
+        pass
 
     def delete_chat(self, organization_id, conversation_uuids):
-        # ... (rest of the delete_chat method remains unchanged)
+        # Implementation of delete_chat method
+        pass
 
     def _make_request(self, method, endpoint, data=None):
-        if endpoint == "/test":
-            raise NotImplementedError("This method should be implemented by subclasses")
-
         url = f"{self.BASE_URL}{endpoint}"
         headers = {"Authorization": f"Bearer {self.session_key}", "Accept-Encoding": "gzip"}
 
