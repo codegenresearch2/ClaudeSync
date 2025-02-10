@@ -1,3 +1,4 @@
+from functools import wraps
 import os
 import hashlib
 import pathspec
@@ -156,8 +157,17 @@ def load_claudeignore(base_path):
             return pathspec.PathSpec.from_lines("gitwildmatch", f)
     return None
 
+@wraps(get_local_files)
 def handle_errors(func):
-    @wraps(func)
+    """
+    Decorator to handle errors in the function and provide user feedback.
+
+    Args:
+        func (callable): The function to be wrapped.
+
+    Returns:
+        callable: The wrapped function.
+    """
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
