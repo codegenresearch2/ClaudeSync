@@ -46,45 +46,45 @@ class BaseClaudeAIProvider(BaseProvider):
         self.logger.setLevel(getattr(logging, log_level))
 
     def login(self):
-        click.echo("To obtain your session key, please follow these steps:")
-        click.echo("1. Open your web browser and go to https://claude.ai")
-        click.echo("2. Log in to your Claude account if you haven't already")
-        click.echo("3. Once logged in, open your browser's developer tools:")
-        click.echo("   - Chrome/Edge: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
-        click.echo("   - Firefox: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
-        click.echo(
-            "   - Safari: Enable developer tools in Preferences > Advanced, then press Cmd+Option+I"
-        )
-        click.echo(
-            "4. In the developer tools, go to the 'Application' tab (Chrome/Edge) or 'Storage' tab (Firefox)"
-        )
-        click.echo(
-            "5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'"
-        )
-        click.echo(
-            "6. Locate the cookie named 'sessionKey' and copy its value. "
-            "Ensure that the value is not URL-encoded."
-        )
+        while True:
+            click.echo("To obtain your session key, please follow these steps:")
+            click.echo("1. Open your web browser and go to https://claude.ai")
+            click.echo("2. Log in to your Claude account if you haven't already")
+            click.echo("3. Once logged in, open your browser's developer tools:")
+            click.echo("   - Chrome/Edge: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
+            click.echo("   - Firefox: Press F12 or Ctrl+Shift+I (Cmd+Option+I on Mac)")
+            click.echo(
+                "   - Safari: Enable developer tools in Preferences > Advanced, then press Cmd+Option+I"
+            )
+            click.echo(
+                "4. In the developer tools, go to the 'Application' tab (Chrome/Edge) or 'Storage' tab (Firefox)"
+            )
+            click.echo(
+                "5. In the left sidebar, expand 'Cookies' and select 'https://claude.ai'"
+            )
+            click.echo(
+                "6. Locate the cookie named 'sessionKey' and copy its value. "
+                "Ensure that the value is not URL-encoded."
+            )
 
-        session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
-        if not session_key.startswith("sk-ant"):
-            click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
-            return self.login()
-        if is_url_encoded(session_key):
-            click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
-            return self.login()
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
+            if not session_key.startswith("sk-ant"):
+                click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+                continue
+            if is_url_encoded(session_key):
+                click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
+                continue
 
-        expires = _get_session_key_expiry()
-        self.session_key = session_key
-        self.session_key_expiry = expires
-        try:
-            organizations = self.get_organizations()
-            if organizations:
-                return self.session_key, self.session_key_expiry
-        except ProviderError as e:
-            click.echo(e)
-            click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
-            return self.login()
+            expires = _get_session_key_expiry()
+            self.session_key = session_key
+            self.session_key_expiry = expires
+            try:
+                organizations = self.get_organizations()
+                if organizations:
+                    return self.session_key, self.session_key_expiry
+            except ProviderError as e:
+                click.echo(e)
+                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
     def get_organizations(self):
         response = self._make_request("GET", "/organizations")
