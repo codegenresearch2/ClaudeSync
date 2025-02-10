@@ -23,9 +23,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 data = json.dumps(data).encode("utf-8")
                 self.logger.debug(f"Request data: {data}")
 
-            req = urllib.request.Request(url, data=data, method=method)
-            for key, value in headers.items():
-                req.add_header(key, value)
+            req = urllib.request.Request(url, data=data, headers=headers)
             req.add_header("Cookie", f"sessionKey={self.session_key}")
 
             with urllib.request.urlopen(req) as response:
@@ -40,7 +38,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 content_str = content.decode("utf-8")
                 self.logger.debug(f"Response content: {content_str[:1000]}...")
 
-                self.handle_http_error(response.status, content_str)
+                self.handle_http_error(response)
 
                 if not content:
                     return None
@@ -48,7 +46,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 return json.loads(content_str)
 
         except urllib.error.HTTPError as e:
-            self.handle_http_error(e.code, e.read().decode("utf-8"))
+            self.handle_http_error(e)
         except urllib.error.URLError as e:
             self.logger.error(f"Request failed: {str(e)}")
             raise ProviderError(f"API request failed: URL error - {str(e)}")
@@ -57,7 +55,14 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             self.logger.error(f"Response content: {content_str}")
             raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
 
-    def handle_http_error(self, status_code, content):
+    def handle_http_error(self, e):
+        if isinstance(e, urllib.error.HTTPError):
+            status_code = e.code
+            content = e.read().decode("utf-8")
+        else:
+            status_code = e.status
+            content = e.read().decode("utf-8")
+
         if status_code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
