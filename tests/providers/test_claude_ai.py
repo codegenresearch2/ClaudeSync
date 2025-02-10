@@ -18,9 +18,10 @@ class TestClaudeAIProvider(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_make_request_success(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
-        mock_response.getcode.return_value = 200
+        mock_response.status = 200
+        mock_response.headers = {'Content-Type': 'application/json'}
         mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
-        mock_urlopen.return_value = mock_response
+        mock_urlopen.return_value.__enter__.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
 
@@ -40,8 +41,8 @@ class TestClaudeAIProvider(unittest.TestCase):
     @patch("urllib.request.urlopen")
     def test_make_request_403_error(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
-        mock_response.getcode.return_value = 403
-        mock_urlopen.return_value = mock_response
+        mock_response.status = 403
+        mock_urlopen.return_value.__enter__.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
 
@@ -49,3 +50,19 @@ class TestClaudeAIProvider(unittest.TestCase):
             self.provider._make_request("GET", "/test")
 
         self.assertIn("403 Forbidden error", str(context.exception))
+
+    @patch("claudesync.config_manager.ConfigManager.get_session_key")
+    @patch("urllib.request.urlopen")
+    def test_make_request_gzip_encoded(self, mock_urlopen, mock_get_session_key):
+        mock_response = MagicMock()
+        mock_response.status = 200
+        mock_response.headers = {'Content-Type': 'application/json', 'Content-Encoding': 'gzip'}
+        mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
+        mock_urlopen.return_value.__enter__.return_value = mock_response
+
+        mock_get_session_key.return_value = "sk-ant-1234"
+
+        result = self.provider._make_request("GET", "/test")
+
+        self.assertEqual(result, {"key": "value"})
+        mock_urlopen.assert_called_once()
