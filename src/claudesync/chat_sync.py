@@ -28,7 +28,7 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
-    chat_destination = os.path.join(local_path, "claude_chats")
+    chat_destination = os.path.join(local_path, "chats")
     os.makedirs(chat_destination, exist_ok=True)
 
     organization_id = config.get("active_organization_id")
