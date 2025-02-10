@@ -45,9 +45,9 @@ class TestUtils(unittest.TestCase):
                 with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
-            for buildDir in {"target", "build"}:
-                os.mkdir(os.path.join(tmpdir, buildDir))
-                with open(os.path.join(tmpdir, buildDir, "output.txt"), "w") as f:
+            for build_dir in {"target", "build"}:
+                os.mkdir(os.path.join(tmpdir, build_dir))
+                with open(os.path.join(tmpdir, build_dir, "output.txt"), "w") as f:
                     f.write("Build output")
 
             with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
