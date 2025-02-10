@@ -16,9 +16,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "Content-Type": "application/json",
         }
 
-        cookies = {"sessionKey": self.session_key}
-        cookie_header = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-        headers["Cookie"] = cookie_header
+        if self.session_key:
+            headers["Cookie"] = f"sessionKey={self.session_key}"
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
