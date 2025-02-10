@@ -37,6 +37,12 @@ class SyncManager:
         """
         Synchronizes files between the local directory and the remote storage.
 
+        This method orchestrates the synchronization process by:
+        1. Uploading new files from the local directory to the remote storage.
+        2. Updating existing files on the remote storage if they have changed locally.
+        3. Deleting files from the remote storage that are no longer present in the local directory (if two-way sync is enabled).
+        4. Updating the local timestamps to match the remote timestamps for synchronized files.
+
         Args:
             local_files (dict): Dictionary of local file names and their corresponding checksums.
             remote_files (list): List of dictionaries representing remote files, each containing:
@@ -48,7 +54,7 @@ class SyncManager:
         remote_files_to_delete = {rf["file_name"] for rf in remote_files}
         synced_files = set()
 
-        with tqdm(total=len(local_files), desc="Syncing local to remote") as pbar:
+        with tqdm(total=len(local_files), desc="Local → Remote") as pbar:
             for local_file, local_checksum in local_files.items():
                 remote_file = next((rf for rf in remote_files if rf["file_name"] == local_file), None)
                 if remote_file:
@@ -60,12 +66,12 @@ class SyncManager:
         self.update_local_timestamps(remote_files, synced_files)
 
         if self.two_way_sync:
-            with tqdm(total=len(remote_files), desc="Syncing remote to local") as pbar:
+            with tqdm(total=len(remote_files), desc="Remote → Local") as pbar:
                 for remote_file in remote_files:
                     self.sync_remote_to_local(remote_file, remote_files_to_delete, synced_files)
                     pbar.update(1)
 
-        with tqdm(total=len(remote_files_to_delete), desc="Deleting remote files") as pbar:
+        with tqdm(total=len(remote_files_to_delete), desc="Deleting Remote Files") as pbar:
             for file_to_delete in list(remote_files_to_delete):
                 self.delete_remote_files(file_to_delete, remote_files)
                 pbar.update(1)
@@ -120,7 +126,7 @@ class SyncManager:
             remote_files (list): List of dictionaries representing remote files.
             synced_files (set): Set of file names that have been synchronized.
         """
-        with tqdm(total=len(synced_files), desc="Updating local timestamps") as pbar:
+        with tqdm(total=len(synced_files), desc="Updating Local Timestamps") as pbar:
             for remote_file in remote_files:
                 if remote_file["file_name"] in synced_files:
                     local_file_path = os.path.join(self.local_path, remote_file["file_name"])
