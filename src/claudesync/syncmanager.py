@@ -9,8 +9,6 @@ from tqdm import tqdm
 from claudesync.utils import compute_md5_hash
 from claudesync.exceptions import ProviderError
 
-logger = logging.getLogger(__name__)
-
 def retry_on_403(max_retries=3, delay=1):
     """
     Decorator to retry a function on 403 Forbidden error.
@@ -25,6 +23,7 @@ def retry_on_403(max_retries=3, delay=1):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            logger = getattr(args[0], 'logger', None) or logging.getLogger(__name__)
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
@@ -61,9 +60,25 @@ class SyncManager:
         self.two_way_sync = config.get("two_way_sync", False)
         self.max_retries = max_retries
         self.retry_delay = delay
+        self.logger = logging.getLogger(__name__)
 
         # Check for existing remote projects
         self.check_existing_remote_projects()
+
+    def check_existing_remote_projects(self):
+        """
+        Check for existing remote projects and handle any errors.
+        """
+        try:
+            projects = self.provider.get_projects(self.active_organization_id, include_archived=False)
+            if not projects:
+                self.logger.info("No existing remote projects found.")
+            else:
+                self.logger.info("Existing remote projects:")
+                for project in projects:
+                    self.logger.info(f"  - {project['name']} (ID: {project['id']})")
+        except ProviderError as e:
+            self.logger.error(f"Error checking existing remote projects: {str(e)}")
 
     # Rest of the SyncManager class methods remain unchanged
 
