@@ -9,6 +9,7 @@ from ..utils import (
     detect_submodules,
     validate_and_store_local_path,
 )
+from tqdm import tqdm
 
 @click.group()
 def project():
