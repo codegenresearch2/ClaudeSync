@@ -19,6 +19,9 @@ def save_artifacts(artifacts, chat_folder, message):
         chat_folder (str): The folder where the artifacts will be saved.
         message (dict): The message metadata.
     """
+    if not artifacts:
+        return
+
     artifact_folder = os.path.join(chat_folder, "artifacts")
     os.makedirs(artifact_folder, exist_ok=True)
     for artifact in artifacts:
@@ -34,7 +37,7 @@ def save_artifacts(artifacts, chat_folder, message):
             logger.debug(f"Artifact {artifact['identifier']} already exists, skipping.")
 
 
-def process_message(provider, config, chat_folder, message, organization_id, project_id):
+def process_message(provider, config, chat_folder, message, organization_id):
     """
     Process a single message and save its content if it's an assistant message.
 
@@ -44,7 +47,6 @@ def process_message(provider, config, chat_folder, message, organization_id, pro
         chat_folder (str): The folder where the message will be saved.
         message (dict): The message metadata.
         organization_id (str): The ID of the organization.
-        project_id (str): The ID of the project.
     """
     message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
     if not os.path.exists(message_file):
@@ -86,9 +88,13 @@ def sync_chat(provider, config, chat, organization_id, project_id):
         json.dump(chat, f, indent=2)
     logger.info(f"Saved chat metadata for {chat['uuid']}")
 
+    # Fetch full chat conversation
+    logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
+    full_chat = provider.get_chat_conversation(organization_id, chat["uuid"])
+
     # Process each message in the chat
-    for message in chat["messages"]:
-        process_message(provider, config, chat_folder, message, organization_id, project_id)
+    for message in full_chat["chat_messages"]:
+        process_message(provider, config, chat_folder, message, organization_id)
 
 
 def sync_chats(provider, config, sync_all=False):
