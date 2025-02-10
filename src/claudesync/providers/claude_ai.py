@@ -46,9 +46,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 content_str = content.decode("utf-8")
                 self.logger.debug(f"Response content: {content_str[:1000]}...")
 
-                self._handle_http_error(response.status, content_str)
+                self.handle_http_error(response.status, content_str)
 
-                if not content_str:
+                if not content:
                     return None
 
                 return json.loads(content_str)
@@ -67,7 +67,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             self.logger.error(f"Response content: {content_str}")
             raise ProviderError(f"Invalid JSON response from API: {str(json_err)}")
 
-    def _handle_http_error(self, status_code, content):
+    def handle_http_error(self, status_code, content):
         if status_code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
