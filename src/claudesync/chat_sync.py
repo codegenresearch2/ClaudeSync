@@ -70,9 +70,9 @@ def process_chat_messages(provider, config, chat, chat_folder):
         save_message(chat_folder, message)
 
 
-def check_and_sync_chat(provider, config, chat, chat_destination):
+def sync_chat(provider, config, chat, chat_destination):
     """
-    Check if the chat belongs to the active project and sync it.
+    Synchronize a single chat and its artifacts.
 
     Args:
         provider: The API provider instance.
@@ -80,17 +80,14 @@ def check_and_sync_chat(provider, config, chat, chat_destination):
         chat (dict): The chat metadata.
         chat_destination (str): The base destination folder for the chat.
     """
-    if (chat.get("project") and chat["project"].get("uuid") == config.get("active_project_id")) or config.get("sync_all"):
-        chat_folder = os.path.join(chat_destination, chat["uuid"])
-        os.makedirs(chat_folder, exist_ok=True)
+    chat_folder = os.path.join(chat_destination, chat["uuid"])
+    os.makedirs(chat_folder, exist_ok=True)
 
-        # Save chat metadata
-        with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
-            json.dump(chat, f, indent=2)
+    # Save chat metadata
+    with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
+        json.dump(chat, f, indent=2)
 
-        process_chat_messages(provider, config, chat, chat_folder)
-    else:
-        logger.info(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
+    process_chat_messages(provider, config, chat, chat_folder)
 
 
 def sync_chats(provider, config, sync_all=False):
@@ -124,7 +121,7 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        check_and_sync_chat(provider, config, chat, chat_destination)
+        sync_chat(provider, config, chat, chat_destination)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
