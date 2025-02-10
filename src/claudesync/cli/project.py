@@ -9,21 +9,13 @@ from ..utils import (
     detect_submodules,
     validate_and_store_local_path,
 )
-from functools import wraps
-
-
-def submodule():
-    """Manage submodules within the current project."""
-    pass
-
 
 @click.group()
 def project():
     """Manage ai projects within the active organization."""
     pass
 
-
-@project.command()
+@click.command()
 @click.pass_obj
 @handle_errors
 def create(config):
@@ -54,8 +46,7 @@ def create(config):
     except ProviderError as e:
         click.echo(f"Failed to create project: {str(e)}")
 
-
-@project.command()
+@click.command()
 @click.pass_obj
 @handle_errors
 def archive(config):
@@ -81,8 +72,7 @@ def archive(config):
     else:
         click.echo("Invalid selection. Please try again.")
 
-
-@project.command()
+@click.command()
 @click.option(
     "-a",
     "--all",
@@ -134,8 +124,7 @@ def select(ctx, show_all):
     else:
         click.echo("Invalid selection. Please try again.")
 
-
-@project.command()
+@click.command()
 @click.option(
     "-a",
     "--all",
@@ -158,8 +147,7 @@ def ls(config, show_all):
             status = " (Archived)" if project.get("archived_at") else ""
             click.echo(f"  - {project['name']} (ID: {project['id']}){status}")
 
-
-@project.command()
+@click.command()
 @click.option("--category", help="Specify the file category to sync")
 @click.pass_obj
 @handle_errors
@@ -238,5 +226,8 @@ def sync(config, category):
 
     click.echo("Project sync completed successfully, including available submodules.")
 
-
-project.add_command(submodule)
+project.add_command(create)
+project.add_command(archive)
+project.add_command(select)
+project.add_command(ls)
+project.add_command(sync)
