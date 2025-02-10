@@ -48,7 +48,7 @@ class SyncManager:
                                  - "created_at" (str): Timestamp when the file was created in ISO format.
                                  - "uuid" (str): Unique identifier of the remote file.
         """
-        remote_files_to_delete = set(rf["file_name"] for rf in remote_files)
+        remote_files_to_delete = {rf["file_name"] for rf in remote_files}
         synced_files = set()
 
         with tqdm(total=len(local_files), desc="Local → Remote") as pbar:
@@ -79,7 +79,7 @@ class SyncManager:
                     pbar.update(1)
 
         with tqdm(total=len(remote_files_to_delete), desc="Deleting remote files", leave=False) as pbar:
-            for file_to_delete in list(remote_files_to_delete):
+            for file_to_delete in remote_files_to_delete:
                 self.delete_remote_files(file_to_delete, remote_files)
                 pbar.update(1)
 
