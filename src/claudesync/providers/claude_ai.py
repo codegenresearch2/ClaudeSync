@@ -11,14 +11,12 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
-            "Accept-Encoding": "gzip, deflate, zstd",
+            "Accept-Encoding": "gzip",
             "Content-Type": "application/json",
         }
 
         cookies = {
             "sessionKey": self.session_key,
-            "CH-prefers-color-scheme": "dark",
-            "anthropic-consent-preferences": '{"analytics":true,"marketing":true}',
         }
 
         try:
@@ -29,7 +27,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 self.logger.debug(f"Request data: {data}")
                 data = json.dumps(data).encode("utf-8")
 
-            req = urllib.request.Request(url, data=data, headers=headers, method=method)
+            req = urllib.request.Request(url, data=data, method=method)
+            for key, value in headers.items():
+                req.add_header(key, value)
             req.add_header("Cookie", "; ".join([f"{k}={v}" for k, v in cookies.items()]))
 
             with urllib.request.urlopen(req) as response:
@@ -74,5 +74,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 "claudesync api logout\n"
                 "claudesync api login claude.ai-curl"
             )
+            self.logger.error(error_msg)
+            raise ProviderError(f"API request failed: {status_code} {error_msg}")
+        elif status_code >= 400:
+            error_msg = f"API request failed: {status_code} {content}"
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
