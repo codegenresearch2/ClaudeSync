@@ -10,7 +10,7 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 # Constants for file paths and names
-CHAT_DESTINATION = "chats"
+CLAUDE_CHATS_DIR = "claude_chats"
 METADATA_FILE_NAME = "metadata.json"
 
 def sync_chats(provider, config, sync_all=False):
@@ -40,7 +40,7 @@ def sync_chats(provider, config, sync_all=False):
     if not active_project_id and not sync_all:
         raise ConfigurationError("No active project set. Please select a project or use the -a flag to sync all chats.")
 
-    chat_destination = os.path.join(local_path, CHAT_DESTINATION)
+    chat_destination = os.path.join(local_path, CLAUDE_CHATS_DIR)
     os.makedirs(chat_destination, exist_ok=True)
 
     logger.debug(f"Fetching chats for organization {organization_id}")
