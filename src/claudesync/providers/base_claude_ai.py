@@ -73,8 +73,8 @@ class BaseClaudeAIProvider(BaseProvider):
                 if organizations:
                     break  # Exit the loop if get_organizations is successful
             except ProviderError as e:
-                print(e)
-                print("Failed to retrieve organizations. Please enter a valid sessionKey.")
+                click.echo(e)
+                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
         return self.session_key, self.session_key_expiry
 
