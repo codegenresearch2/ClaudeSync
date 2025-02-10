@@ -63,6 +63,21 @@ def process_message(provider, config, chat_folder, message, organization_id):
         logger.debug(f"Message {message['uuid']} already exists, skipping.")
 
 
+def fetch_full_chat(provider, organization_id, chat_id):
+    """
+    Fetch the full chat conversation for a given chat ID.
+
+    Args:
+        provider: The API provider instance.
+        organization_id (str): The ID of the organization.
+        chat_id (str): The ID of the chat.
+
+    Returns:
+        dict: The full chat conversation.
+    """
+    return provider.get_chat_conversation(organization_id, chat_id)
+
+
 def sync_chat(provider, config, chat, organization_id, project_id):
     """
     Synchronize a single chat and its artifacts.
@@ -89,8 +104,7 @@ def sync_chat(provider, config, chat, organization_id, project_id):
     logger.info(f"Saved chat metadata for {chat['uuid']}")
 
     # Fetch full chat conversation
-    logger.debug(f"Fetching full conversation for chat {chat['uuid']}")
-    full_chat = provider.get_chat_conversation(organization_id, chat["uuid"])
+    full_chat = fetch_full_chat(provider, organization_id, chat["uuid"])
 
     # Process each message in the chat
     for message in full_chat["chat_messages"]:
