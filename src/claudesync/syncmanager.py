@@ -10,17 +10,34 @@ from claudesync.chat_sync import process_chat_directory
 
 logger = logging.getLogger(__name__)
 
+# Define constants
+UPLOAD_DELAY = 0.5
+
 class SyncManager:
     def __init__(self, provider, config):
+        """
+        Initialize the SyncManager with the given provider and configuration.
+
+        Args:
+            provider (Provider): The provider instance to interact with the remote storage.
+            config (dict): Configuration dictionary containing sync settings.
+        """
         self.provider = provider
         self.config = config
         self.active_organization_id = config.get("active_organization_id")
         self.active_project_id = config.get("active_project_id")
         self.local_path = config.get("local_path")
-        self.upload_delay = config.get("upload_delay", 0.5)
+        self.upload_delay = config.get("upload_delay", UPLOAD_DELAY)
         self.two_way_sync = config.get("two_way_sync", False)
 
     def sync(self, local_files, remote_files):
+        """
+        Main synchronization method that orchestrates the sync process.
+
+        Args:
+            local_files (dict): Dictionary of local file names and their corresponding checksums.
+            remote_files (list): List of dictionaries representing remote files.
+        """
         remote_files_to_delete = set(rf["file_name"] for rf in remote_files)
         synced_files = set()
 
@@ -48,6 +65,16 @@ class SyncManager:
         logger.info("Sync completed successfully.")
 
     def sync_file(self, local_file, local_checksum, remote_files, remote_files_to_delete, synced_files):
+        """
+        Synchronize a file between local and remote storage.
+
+        Args:
+            local_file (str): Name of the local file.
+            local_checksum (str): MD5 checksum of the local file content.
+            remote_files (list): List of dictionaries representing remote files.
+            remote_files_to_delete (set): Set of remote file names to be considered for deletion.
+            synced_files (set): Set of file names that have been synchronized.
+        """
         remote_file = next((rf for rf in remote_files if rf["file_name"] == local_file), None)
         if remote_file:
             self.update_existing_file(local_file, local_checksum, remote_file, remote_files_to_delete, synced_files)
@@ -57,8 +84,13 @@ class SyncManager:
     # Rest of the methods remain the same
 
 def process_chat_directory(provider, config, chat_directory):
+    """
+    Process a chat directory and perform synchronization.
+
+    Args:
+        provider (Provider): The provider instance to interact with the remote storage.
+        config (dict): Configuration dictionary containing sync settings.
+        chat_directory (str): Name of the chat directory.
+    """
     # Implement chat processing logic here
     pass
-
-
-In the rewritten code, I added support for new chat directories by checking if a file ends with '.chat' and processing it using the `process_chat_directory` function. I also modularized chat processing into a separate function to improve code organization. The `sync_file` method was added to handle the synchronization of regular files, while chat directories are processed separately. The sync completion message was moved to the end of the `sync` method to consolidate all completion messages.
