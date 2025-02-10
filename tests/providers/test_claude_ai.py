@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import urllib.request
 import gzip
 import io
+import json
 from claudesync.providers.claude_ai import ClaudeAIProvider
 from claudesync.exceptions import ProviderError
 
@@ -35,9 +36,11 @@ class TestClaudeAIProvider(unittest.TestCase):
                 def getheader(self, header):
                     return self.response.getheader(header)
 
-                @property
-                def status(self):
-                    return self.response.status
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
 
             return FakeResponse(mock_response)
 
@@ -76,9 +79,11 @@ class TestClaudeAIProvider(unittest.TestCase):
                 def getheader(self, header):
                     return self.response.getheader(header)
 
-                @property
-                def status(self):
-                    return self.response.status
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
 
             return FakeResponse(mock_response)
 
@@ -111,9 +116,11 @@ class TestClaudeAIProvider(unittest.TestCase):
                 def getheader(self, header):
                     return self.response.getheader(header)
 
-                @property
-                def status(self):
-                    return self.response.status
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
 
             return FakeResponse(mock_response)
 
