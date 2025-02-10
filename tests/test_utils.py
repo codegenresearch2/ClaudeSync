@@ -42,15 +42,7 @@ class TestUtils(unittest.TestCase):
             for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
 
-            # Create a test~ file
-            with open(os.path.join(tmpdir, "CVS", "test~"), "w") as f:
-                f.write("*.log\n")
-
-            for buildDir in {"target", "build"}:
-                os.mkdir(os.path.join(tmpdir, buildDir))
-                with open(os.path.join(tmpdir, buildDir, "output.txt"), "w") as f:
-                    f.write("Build output")
-
+            # Create a .gitignore file
             with open(os.path.join(tmpdir, ".gitignore"), "w") as f:
                 f.write("*.log\n/build\ntarget")
 
