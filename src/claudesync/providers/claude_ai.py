@@ -3,52 +3,60 @@ import urllib.error
 import urllib.parse
 import json
 import gzip
+import time
+import functools
 from datetime import datetime, timezone
 
 from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
+from ..config_manager import ConfigManager
 
+def retry_with_backoff(max_retries=3, delay=1):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except ProviderError as e:
+                    if attempt < max_retries - 1:
+                        print(f"Retry attempt {attempt + 1} failed. Retrying in {delay} seconds...")
+                        time.sleep(delay)
+                        delay *= 2
+                    else:
+                        raise e
+        return wrapper
+    return decorator
 
 class ClaudeAIProvider(BaseClaudeAIProvider):
+    def __init__(self, session_key=None, session_key_expiry=None):
+        super().__init__(session_key, session_key_expiry)
+        self.config = ConfigManager()
+
+    @retry_with_backoff(max_retries=5, delay=2)
     def _make_request(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
             "Accept-Encoding": "gzip",
+            "Cookie": f"sessionKey={self.session_key}",
         }
 
-        cookies = {
-            "sessionKey": self.session_key,
-        }
+        req = urllib.request.Request(url, method=method, headers=headers)
+        if data:
+            req.data = json.dumps(data).encode("utf-8")
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
             if data:
                 self.logger.debug(f"Request data: {data}")
 
-            # Prepare the request
-            req = urllib.request.Request(url, method=method)
-            for key, value in headers.items():
-                req.add_header(key, value)
-
-            # Add cookies
-            cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-            req.add_header("Cookie", cookie_string)
-
-            # Add data if present
-            if data:
-                json_data = json.dumps(data).encode("utf-8")
-                req.data = json_data
-
-            # Make the request
             with urllib.request.urlopen(req) as response:
                 self.logger.debug(f"Response status code: {response.status}")
                 self.logger.debug(f"Response headers: {response.headers}")
 
-                # Handle gzip encoding
                 if response.headers.get("Content-Encoding") == "gzip":
                     content = gzip.decompress(response.read())
                 else:
@@ -76,49 +84,23 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-
-        try:
-            # Check if the content is gzip-encoded
-            if e.headers.get("Content-Encoding") == "gzip":
-                content = gzip.decompress(e.read())
-            else:
-                content = e.read()
-
-            # Try to decode the content as UTF-8
-            content_str = content.decode("utf-8")
-        except UnicodeDecodeError:
-            # If UTF-8 decoding fails, try to decode as ISO-8859-1
-            content_str = content.decode("iso-8859-1")
-
-        self.logger.debug(f"Response content: {content_str}")
-
+        content = e.read().decode("utf-8")
+        self.logger.debug(f"Response content: {content}")
         if e.code == 403:
-            error_msg = (
-                "Received a 403 Forbidden error. Your session key might be invalid. "
-                "Please try logging out and logging in again. If the issue persists, "
-                "you can try using the claude.ai-curl provider as a workaround:\n"
-                "claudesync api logout\n"
-                "claudesync api login claude.ai-curl"
-            )
+            error_msg = "Received a 403 Forbidden error. Your session key might be invalid. Please try logging out and logging in again."
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
-        elif e.code == 429:
+        if e.code == 429:
             try:
-                error_data = json.loads(content_str)
+                error_data = json.loads(content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
-                resets_at_local = datetime.fromtimestamp(
-                    resets_at_unix, tz=timezone.utc
-                ).astimezone()
+                resets_at_local = datetime.fromtimestamp(resets_at_unix, tz=timezone.utc).astimezone()
                 formatted_time = resets_at_local.strftime("%a %b %d %Y %H:%M:%S %Z%z")
-                error_msg = f"Message limit exceeded. Try again after {formatted_time}"
+                print(f"Message limit exceeded. Try again after {formatted_time}")
             except (KeyError, json.JSONDecodeError) as parse_error:
-                error_msg = f"HTTP 429: Too Many Requests. Failed to parse error response: {parse_error}"
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
-        else:
-            error_msg = f"API request failed with status code {e.code}: {content_str}"
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
+                print(f"Failed to parse error response: {parse_error}")
+            raise ProviderError("HTTP 429: Too Many Requests")
+        raise ProviderError(f"API request failed: {str(e)}")
 
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
