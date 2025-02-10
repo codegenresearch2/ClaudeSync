@@ -1,7 +1,6 @@
 import os
 import click
 from claudesync.exceptions import ProviderError
-from .submodule import submodule
 from ..syncmanager import SyncManager
 from ..utils import (
     handle_errors,
@@ -229,7 +228,6 @@ def sync(config, category):
 
     click.echo("Project sync completed successfully, including available submodules.")
 
-project.add_command(submodule)
 project.add_command(create)
 project.add_command(archive)
 project.add_command(select)
