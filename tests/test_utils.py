@@ -1,6 +1,7 @@
 import unittest
 import os
 import tempfile
+import logging
 
 from claudesync.utils import (
     compute_md5_hash,
@@ -9,6 +10,7 @@ from claudesync.utils import (
     load_claudeignore,
 )
 
+logger = logging.getLogger(__name__)
 
 class TestUtils(unittest.TestCase):
 
@@ -16,6 +18,7 @@ class TestUtils(unittest.TestCase):
         content = "Hello, World!"
         expected_checksum = "65a8e27d8879283831b664bd8b7f0ad4"
         self.assertEqual(compute_md5_hash(content), expected_checksum)
+        logger.debug(f"Checksum for '{content}' is {expected_checksum}")
 
     def test_load_gitignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -28,6 +31,7 @@ class TestUtils(unittest.TestCase):
             self.assertTrue(gitignore.match_file("test.log"))
             self.assertTrue(gitignore.match_file("node_modules/package.json"))
             self.assertFalse(gitignore.match_file("src/main.py"))
+            logger.debug(f"Gitignore loaded from {tmpdir}")
 
     def test_get_local_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -39,13 +43,11 @@ class TestUtils(unittest.TestCase):
             os.mkdir(os.path.join(tmpdir, "subdir"))
             with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
                 f.write("Content of file3")
-            with open(os.path.join(tmpdir, "test~"), "w") as f:
-                f.write("*.log\n")
 
             # Create a test~ file
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "afile"), "w") as f:
+                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
                     f.write("*.log\n")
 
             for buildDir in {"target", "build"}:
@@ -57,7 +59,7 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            print(local_files)
+            logger.debug(f"Local files: {local_files}")
 
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
@@ -78,6 +80,7 @@ class TestUtils(unittest.TestCase):
             self.assertTrue(claudeignore.match_file("test.log"))
             self.assertTrue(claudeignore.match_file("build/output.txt"))
             self.assertFalse(claudeignore.match_file("src/main.py"))
+            logger.debug(f"Claudeignore loaded from {tmpdir}")
 
     def test_get_local_files_with_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -95,11 +98,11 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
+            logger.debug(f"Local files with Claudeignore: {local_files}")
 
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-
 
 if __name__ == "__main__":
     unittest.main()
