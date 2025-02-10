@@ -1,18 +1,12 @@
 import unittest
 import os
 import tempfile
-import logging
 from claudesync.utils import (
     compute_md5_hash,
     load_gitignore,
     get_local_files,
     load_claudeignore,
 )
-
-# Configure logging for file operations
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
 
 class TestUtils(unittest.TestCase):
 
@@ -44,11 +38,13 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
                 f.write("Content of file3")
 
-            # Create a test~ file
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
+            # Create a test~ file directly in the temporary directory
+            with open(os.path.join(tmpdir, "test~"), "w") as f:
+                f.write("*.log\n")
+
+            # Include the specific version control system directories
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
-                    f.write("*.log\n")
 
             for buildDir in {"target", "build"}:
                 os.mkdir(os.path.join(tmpdir, buildDir))
@@ -59,8 +55,6 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            print(f"Local files: {local_files}")
-
             self.assertIn("file1.txt", local_files)
             self.assertIn("file2.py", local_files)
             self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
@@ -97,12 +91,9 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
-            print(f"Local files: {local_files}")
-
             self.assertIn("file1.txt", local_files)
             self.assertNotIn("file2.log", local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-
 
 if __name__ == "__main__":
     unittest.main()
