@@ -51,11 +51,11 @@ def create(ctx):
             active_organization_id, title, description
         )
         click.echo(
-            f"Project '{new_project['title']}' (uuid: {new_project['uuid']}) has been created successfully."
+            f"Project '{new_project['name']}' (uuid: {new_project['uuid']}) has been created successfully."
         )
 
         ctx.obj['active_project_id'] = new_project["uuid"]
-        ctx.obj['active_project_name'] = new_project["title"]
+        ctx.obj['active_project_name'] = new_project["name"]
     except ProviderError as e:
         click.echo(f"Failed to create project: {str(e)}")
 
@@ -73,14 +73,14 @@ def archive(ctx):
         return
     click.echo("Available projects to archive:")
     for idx, project in enumerate(projects, 1):
-        click.echo(f"  {idx}. {project['title']} (ID: {project['id']})")
+        click.echo(f"  {idx}. {project['name']} (ID: {project['id']})")
     selection = click.prompt("Enter the number of the project to archive", type=int)
     if 1 <= selection <= len(projects):
         project_id = projects[selection - 1]['id']
-        confirm = click.confirm(f"Are you sure you want to archive the project '{projects[selection - 1]['title']}'?")
+        confirm = click.confirm(f"Are you sure you want to archive the project '{projects[selection - 1]['name']}'?")
         if confirm:
             provider.archive_project(active_organization_id, project_id)
-            click.echo(f"Project '{projects[selection - 1]['title']}' has been archived.")
+            click.echo(f"Project '{projects[selection - 1]['name']}' has been archived.")
     else:
         click.echo("Invalid selection. Please try again.")
 
@@ -98,13 +98,13 @@ def select(ctx):
         return
     click.echo("Available projects:")
     for idx, project in enumerate(projects, 1):
-        click.echo(f"  {idx}. {project['title']} (ID: {project['id']})")
+        click.echo(f"  {idx}. {project['name']} (ID: {project['id']})")
     selection = click.prompt("Enter the number of the project to select", type=int, default=1)
     if 1 <= selection <= len(projects):
         selected_project = projects[selection - 1]
         ctx.obj['active_project_id'] = selected_project["id"]
-        ctx.obj['active_project_name'] = selected_project["title"]
-        click.echo(f"Selected project: {selected_project['title']} (ID: {selected_project['id']})")
+        ctx.obj['active_project_name'] = selected_project["name"]
+        click.echo(f"Selected project: {selected_project['name']} (ID: {selected_project['id']})")
     else:
         click.echo("Invalid selection. Please try again.")
 
@@ -123,7 +123,7 @@ def ls(ctx):
         click.echo("Remote projects:")
         for project in projects:
             status = " (Archived)" if project.get("archived_at") else ""
-            click.echo(f"  - {project['title']} (ID: {project['id']}){status}")
+            click.echo(f"  - {project['name']} (ID: {project['id']}){status}")
 
 # Command to synchronize the project files
 @project.command()
@@ -144,7 +144,7 @@ def sync(ctx):
     local_submodules = detect_submodules(local_path, submodule_detect_filenames)
     all_remote_projects = provider.get_projects()
     remote_submodule_projects = [
-        project for project in all_remote_projects if project["title"].startswith(ctx.obj['active_project_name'] + "-SubModule-")
+        project for project in all_remote_projects if project["name"].startswith(ctx.obj['active_project_name'] + "-SubModule-")
     ]
     sync_manager = SyncManager(provider, ctx.obj)
     remote_files = provider.list_files(active_project_id)
@@ -154,7 +154,7 @@ def sync(ctx):
     for local_submodule, detected_file in local_submodules:
         submodule_name = os.path.basename(local_submodule)
         remote_project = next(
-            (proj for proj in remote_submodule_projects if proj["title"].endswith(f"-{submodule_name}")), None
+            (proj for proj in remote_submodule_projects if proj["name"].endswith(f"-{submodule_name}")), None
         )
         if remote_project:
             click.echo(f"Syncing submodule '{submodule_name}'...")
@@ -163,7 +163,7 @@ def sync(ctx):
             remote_submodule_files = provider.list_files(remote_project["id"])
             submodule_config = ctx.obj.copy()
             submodule_config["active_project_id"] = remote_project["id"]
-            submodule_config["active_project_name"] = remote_project["title"]
+            submodule_config["active_project_name"] = remote_project["name"]
             submodule_config["local_path"] = submodule_path
             submodule_sync_manager = SyncManager(provider, submodule_config)
             submodule_sync_manager.sync(submodule_files, remote_submodule_files)
