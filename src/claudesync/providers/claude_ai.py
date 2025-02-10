@@ -1,6 +1,5 @@
 import urllib.request
 import urllib.error
-import urllib.parse
 import json
 import gzip
 from datetime import datetime, timezone
@@ -30,13 +29,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 self.logger.debug(f"Request data: {data}")
 
             # Prepare the request
-            req = urllib.request.Request(url, method=method)
-            for key, value in headers.items():
+            req = urllib.request.Request(url, method=method, headers=headers)
+            for key, value in cookies.items():
                 req.add_header(key, value)
-
-            # Add cookies
-            cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-            req.add_header("Cookie", cookie_string)
 
             # Add data if present
             if data:
@@ -49,7 +44,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 self.logger.debug(f"Response headers: {response.headers}")
 
                 # Handle gzip encoding
-                if response.headers.get("Content-Encoding") == "gzip":
+                content_encoding = response.headers.get("Content-Encoding")
+                if content_encoding == "gzip":
                     content = gzip.decompress(response.read())
                 else:
                     content = response.read()
@@ -76,22 +72,8 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-
-        try:
-            # Check if the content is gzip-encoded
-            if e.headers.get("Content-Encoding") == "gzip":
-                content = gzip.decompress(e.read())
-            else:
-                content = e.read()
-
-            # Try to decode the content as UTF-8
-            content_str = content.decode("utf-8")
-        except UnicodeDecodeError:
-            # If UTF-8 decoding fails, try to decode as ISO-8859-1
-            content_str = content.decode("iso-8859-1")
-
-        self.logger.debug(f"Response content: {content_str}")
-
+        content = e.read().decode("utf-8")
+        self.logger.debug(f"Response content: {content}")
         if e.code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
@@ -102,23 +84,19 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             )
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
-        elif e.code == 429:
+        if e.code == 429:
             try:
-                error_data = json.loads(content_str)
+                error_data = json.loads(content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
                 ).astimezone()
                 formatted_time = resets_at_local.strftime("%a %b %d %Y %H:%M:%S %Z%z")
-                error_msg = f"Message limit exceeded. Try again after {formatted_time}"
+                print(f"Message limit exceeded. Try again after {formatted_time}")
             except (KeyError, json.JSONDecodeError) as parse_error:
-                error_msg = f"HTTP 429: Too Many Requests. Failed to parse error response: {parse_error}"
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
-        else:
-            error_msg = f"API request failed with status code {e.code}: {content_str}"
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
+                print(f"Failed to parse error response: {parse_error}")
+            raise ProviderError("HTTP 429: Too Many Requests")
+        raise ProviderError(f"API request failed: {str(e)}")
 
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
