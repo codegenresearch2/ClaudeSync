@@ -46,6 +46,7 @@ def sync(config):
     click.echo("Projects and chats synchronized successfully.")
 
 def validate_local_path(local_path):
+    """Validate the local path."""
     if not local_path:
         click.echo("No local path set. Please select or create a project to set the local path.")
         sys.exit(1)
@@ -71,12 +72,14 @@ def schedule(config, interval):
         setup_unix_cron(claudesync_path, interval)
 
 def setup_windows_task(claudesync_path, interval):
+    """Set up a Windows Task Scheduler task."""
     click.echo("Windows Task Scheduler setup:")
     command = f'schtasks /create /tn "ClaudeSync" /tr "{claudesync_path} sync" /sc minute /mo {interval}'
     click.echo(f"Run this command to create the task:\n{command}")
     click.echo('\nTo remove the task, run: schtasks /delete /tn "ClaudeSync" /f')
 
 def setup_unix_cron(claudesync_path, interval):
+    """Set up a cron job for Unix-based systems."""
     cron = CronTab(user=True)
     job = cron.new(command=f"{claudesync_path} sync")
     job.minute.every(interval)
