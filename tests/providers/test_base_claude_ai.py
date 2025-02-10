@@ -56,6 +56,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
 
         self.assertTrue("Invalid session key" in str(context.exception))
         self.assertEqual(mock_prompt.call_count, 3)
+        self.assertNotEqual(self.provider.session_key, "sk-ant-test123")
 
     @patch("claudesync.providers.base_claude_ai.BaseClaudeAIProvider._make_request")
     def test_get_organizations(self, mock_make_request):
