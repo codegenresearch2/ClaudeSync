@@ -15,6 +15,9 @@ def normalize_and_calculate_md5(content):
     """
     Normalize the line endings of the input content to Unix-style (\n) and calculate its MD5 checksum.
     
+    Normalizing line endings ensures that the content is consistent across different operating systems.
+    This is important for generating accurate MD5 checksums.
+    
     Args:
         content (str): The content to be normalized and hashed.
     
@@ -27,6 +30,9 @@ def normalize_and_calculate_md5(content):
 def load_gitignore(base_path):
     """
     Load and parse the .gitignore file from the specified base path.
+    
+    The .gitignore file contains patterns that specify which files should be ignored.
+    This function reads the file and creates a PathSpec object that can be used to match paths against the patterns.
     
     Args:
         base_path (str): The base directory path where the .gitignore file is located.
@@ -43,6 +49,9 @@ def load_gitignore(base_path):
 def is_text_file(file_path, sample_size=8192):
     """
     Determine if a file is a text file by checking for the absence of null bytes.
+    
+    This function reads a sample of the file (default 8192 bytes) and checks if it contains any null byte (\x00).
+    The presence of a null byte is often indicative of a binary file.
     
     Args:
         file_path (str): The path to the file to be checked.
@@ -61,6 +70,9 @@ def compute_md5_hash(content):
     """
     Compute the MD5 hash of the given content.
     
+    This function takes a string as input, encodes it into UTF-8, and then computes the MD5 hash of the encoded string.
+    The result is a hexadecimal representation of the hash, which is commonly used for creating a quick and simple fingerprint of a piece of data.
+    
     Args:
         content (str): The content for which to compute the MD5 hash.
     
@@ -72,6 +84,12 @@ def compute_md5_hash(content):
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
     """
     Determine whether a file should be processed based on various criteria.
+    
+    This function checks if a file should be included in the synchronization process by applying several filters:
+    - Checks if the file size is within the configured maximum limit.
+    - Skips temporary editor files (ending with '~').
+    - Applies .gitignore rules if a gitignore PathSpec is provided.
+    - Verifies if the file is a text file.
     
     Args:
         file_path (str): The full path to the file.
@@ -99,6 +117,9 @@ def process_file(file_path):
     """
     Reads the content of a file and computes its MD5 hash.
     
+    This function attempts to read the file as UTF-8 text and compute its MD5 hash.
+    If the file cannot be read as UTF-8 or any other error occurs, it logs the issue and returns None.
+    
     Args:
         file_path (str): The path to the file to be processed.
     
@@ -118,6 +139,16 @@ def process_file(file_path):
 def get_local_files(local_path):
     """
     Retrieves a dictionary of local files within a specified path, applying various filters.
+    
+    This function walks through the directory specified by `local_path`, applying several filters to each file:
+    - Excludes files in directories like .git, .svn, etc.
+    - Skips files larger than a specified maximum size (default 200KB, configurable).
+    - Ignores temporary editor files (ending with '~').
+    - Applies .gitignore rules if a .gitignore file is present in the `local_path`.
+    - Applies .claudeignore rules if a .claudeignore file is present in the `local_path`.
+    - Checks if the file is a text file before processing.
+    Each file that passes these filters is read, and its content is hashed using MD5. The function returns a dictionary
+    where each key is the relative path of a file from `local_path`, and its value is the MD5 hash of the file's content.
     
     Args:
         local_path (str): The base directory path to search for files.
@@ -150,6 +181,9 @@ def handle_errors(func):
     """
     A decorator that wraps a function to catch and handle specific exceptions.
     
+    This decorator catches exceptions of type ConfigurationError and ProviderError that are raised within the decorated function.
+    When such an exception is caught, it prints an error message to the console using click's echo function and logs the error message for debugging purposes.
+    
     Args:
         func (Callable): The function to be decorated.
     
@@ -171,6 +205,9 @@ def validate_and_get_provider(config, require_org=True):
     Validates the configuration for the presence of an active provider and session key,
     and optionally checks for an active organization ID. If validation passes, it retrieves
     the provider instance based on the active provider name.
+    
+    This function ensures that the necessary configuration settings are present before attempting to interact with a provider.
+    If the required settings are missing, it raises a ConfigurationError with a clear message.
     
     Args:
         config (ConfigManager): The configuration manager instance containing settings.
@@ -195,6 +232,10 @@ def validate_and_get_provider(config, require_org=True):
 def validate_and_store_local_path(config):
     """
     Prompts the user for the absolute path to their local project directory and stores it in the configuration.
+    
+    This function repeatedly prompts the user to enter the absolute path to their local project directory until
+    a valid absolute path is provided. The path is validated to ensure it exists, is a directory, and is an absolute path.
+    Once a valid path is provided, it is stored in the configuration using the `set` method of the `ConfigManager` object.
     
     Args:
         config (ConfigManager): The configuration manager instance to store the local path setting.
