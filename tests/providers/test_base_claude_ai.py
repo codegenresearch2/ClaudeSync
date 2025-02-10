@@ -1,6 +1,6 @@
 import datetime
 import unittest
-from unittest.mock import patch, MagicMock, call, ANY
+from unittest.mock import patch, MagicMock, call
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
 
 class TestBaseClaudeAIProvider(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey", type=str),
+            call("Please enter your sessionKey", type=str, hide_input=True),
             call(
                 "Please enter the expires time for the sessionKey (optional)",
                 default=ANY,
