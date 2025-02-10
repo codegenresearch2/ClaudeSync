@@ -44,11 +44,11 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        sync_chat(provider, config, chat, chat_destination)
+        sync_chat(provider, config, chat, chat_destination, active_project_id, sync_all)
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
-def sync_chat(provider, config, chat, chat_destination):
+def sync_chat(provider, config, chat, chat_destination, active_project_id, sync_all):
     """
     Synchronize a single chat and its artifacts.
 
@@ -57,6 +57,8 @@ def sync_chat(provider, config, chat, chat_destination):
         config: The configuration manager instance.
         chat: The chat metadata.
         chat_destination: The local directory to save the chat data.
+        active_project_id: The ID of the active project.
+        sync_all: Whether to sync all chats or only the active project's chats.
     """
     chat_folder = os.path.join(chat_destination, chat["uuid"])
     if not os.path.exists(chat_folder):
