@@ -13,6 +13,10 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 logger = logging.getLogger(__name__)
 config_manager = ConfigManager()
 
+# Constants
+MAX_FILE_SIZE = 32 * 1024
+SAMPLE_SIZE = 8192
+
 def normalize_and_calculate_md5(content):
     """
     Normalizes the line endings of the input content to Unix-style (\n) and calculates the MD5 checksum.
@@ -43,14 +47,14 @@ def load_gitignore(base_path):
             return pathspec.PathSpec.from_lines("gitwildmatch", f)
     return None
 
-def is_text_file(file_path, sample_size=8192):
+def is_text_file(file_path, sample_size=SAMPLE_SIZE):
     """
     Determines if a file is a text file by checking for the absence of null bytes.
 
     Args:
         file_path (str): The path to the file to be checked.
         sample_size (int, optional): The number of bytes to read from the file for checking.
-                                     Defaults to 8192.
+                                     Defaults to SAMPLE_SIZE.
 
     Returns:
         bool: True if the file is likely a text file, False if it is likely binary or an error occurred.
@@ -87,8 +91,7 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
     Returns:
         bool: True if the file should be processed, False otherwise.
     """
-    max_file_size = config_manager.get("max_file_size", 32 * 1024)
-    if os.path.getsize(file_path) > max_file_size:
+    if os.path.getsize(file_path) > MAX_FILE_SIZE:
         return False
     if filename.endswith("~"):
         return False
