@@ -70,22 +70,26 @@ def process_chat_messages(provider, config, chat, chat_folder):
         save_message(chat_folder, message)
 
 
-def sync_chat(provider, config, chat, chat_destination):
+def sync_chat(provider, config, chat_id, organization_id):
     """
     Synchronize a single chat and its artifacts.
 
     Args:
         provider: The API provider instance.
         config: The configuration manager instance.
-        chat (dict): The chat metadata.
-        chat_destination (str): The base destination folder for the chat.
+        chat_id (str): The ID of the chat to synchronize.
+        organization_id (str): The ID of the organization the chat belongs to.
     """
-    chat_folder = os.path.join(chat_destination, chat["uuid"])
+    chat_folder = os.path.join(config.get("local_path"), "chats", chat_id)
     os.makedirs(chat_folder, exist_ok=True)
 
-    # Save chat metadata
-    with open(os.path.join(chat_folder, "metadata.json"), "w") as f:
-        json.dump(chat, f, indent=2)
+    # Check if chat metadata already exists
+    metadata_file = os.path.join(chat_folder, "metadata.json")
+    if not os.path.exists(metadata_file):
+        # Save chat metadata
+        chat = provider.get_chat_conversation(organization_id, chat_id)
+        with open(metadata_file, "w") as f:
+            json.dump(chat, f, indent=2)
 
     process_chat_messages(provider, config, chat, chat_folder)
 
@@ -109,9 +113,6 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Use 'claudesync project select' or 'claudesync project create' to set it.")
 
-    chat_destination = os.path.join(local_path, "claude_chats")
-    os.makedirs(chat_destination, exist_ok=True)
-
     organization_id = config.get("active_organization_id")
     if not organization_id:
         raise ConfigurationError("No active organization set. Please select an organization.")
@@ -121,9 +122,10 @@ def sync_chats(provider, config, sync_all=False):
     logger.debug(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
-        sync_chat(provider, config, chat, chat_destination)
+        if sync_all or (chat.get("project") and chat["project"].get("uuid") == config.get("active_project_id")):
+            sync_chat(provider, config, chat["uuid"], organization_id)
 
-    logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
+    logger.debug(f"Chats and artifacts synchronized to {local_path}/chats")
 
 
 def get_file_extension(artifact_type):
