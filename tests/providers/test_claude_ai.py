@@ -19,8 +19,10 @@ class TestClaudeAIProvider(unittest.TestCase):
     def test_make_request_success(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
         mock_response.status = 200
-        mock_response.read.return_value = b'{"key": "value"}'
-        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.read.return_value = json.dumps({"key": "value"}).encode('utf-8')
+        mock_response.getheader.side_effect = lambda header: {
+            "Content-Type": "application/json"
+        }.get(header)
 
         def urlopen_side_effect(*args, **kwargs):
             class FakeResponse:
@@ -31,13 +33,11 @@ class TestClaudeAIProvider(unittest.TestCase):
                     return self.response
 
                 def getheader(self, header):
-                    return self.response.headers.get(header)
+                    return self.response.getheader(header)
 
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
+                @property
+                def status(self):
+                    return self.response.status
 
             return FakeResponse(mock_response)
 
@@ -61,7 +61,9 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 403
         mock_response.read.return_value = b'{"error": "Forbidden"}'
-        mock_response.headers = {"Content-Type": "application/json"}
+        mock_response.getheader.side_effect = lambda header: {
+            "Content-Type": "application/json"
+        }.get(header)
 
         def urlopen_side_effect(*args, **kwargs):
             class FakeResponse:
@@ -72,13 +74,11 @@ class TestClaudeAIProvider(unittest.TestCase):
                     return self.response
 
                 def getheader(self, header):
-                    return self.response.headers.get(header)
+                    return self.response.getheader(header)
 
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
+                @property
+                def status(self):
+                    return self.response.status
 
             return FakeResponse(mock_response)
 
@@ -94,8 +94,11 @@ class TestClaudeAIProvider(unittest.TestCase):
     def test_make_request_gzip_response(self, mock_urlopen):
         mock_response = MagicMock()
         mock_response.status = 200
-        mock_response.read.return_value = gzip.compress(b'{"key": "value"}')
-        mock_response.headers = {"Content-Type": "application/json", "Content-Encoding": "gzip"}
+        mock_response.read.return_value = gzip.compress(json.dumps({"key": "value"}).encode('utf-8'))
+        mock_response.getheader.side_effect = lambda header: {
+            "Content-Type": "application/json",
+            "Content-Encoding": "gzip"
+        }.get(header)
 
         def urlopen_side_effect(*args, **kwargs):
             class FakeResponse:
@@ -106,13 +109,11 @@ class TestClaudeAIProvider(unittest.TestCase):
                     return self.response
 
                 def getheader(self, header):
-                    return self.response.headers.get(header)
+                    return self.response.getheader(header)
 
-                def __enter__(self):
-                    return self
-
-                def __exit__(self, exc_type, exc_val, exc_tb):
-                    pass
+                @property
+                def status(self):
+                    return self.response.status
 
             return FakeResponse(mock_response)
 
