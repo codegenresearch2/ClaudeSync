@@ -8,9 +8,8 @@ from datetime import datetime, timezone
 from .base_claude_ai import BaseClaudeAIProvider
 from ..exceptions import ProviderError
 
-
 class ClaudeAIProvider(BaseClaudeAIProvider):
-    def _make_request(self, method, endpoint, data=None):
+    def _make_request(self, method, endpoint, data=None, retry_count=0):
         url = f"{self.BASE_URL}{endpoint}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
@@ -63,6 +62,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 return json.loads(content_str)
 
         except urllib.error.HTTPError as e:
+            if e.code == 403 and retry_count < 3:
+                self.logger.warning("Received a 403 Forbidden error. Retrying...")
+                return self._make_request(method, endpoint, data, retry_count + 1)
             self.handle_http_error(e)
         except urllib.error.URLError as e:
             self.logger.error(f"URL Error: {str(e)}")
@@ -76,25 +78,11 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-
-        try:
-            # Check if the content is gzip-encoded
-            if e.headers.get("Content-Encoding") == "gzip":
-                content = gzip.decompress(e.read())
-            else:
-                content = e.read()
-
-            # Try to decode the content as UTF-8
-            content_str = content.decode("utf-8")
-        except UnicodeDecodeError:
-            # If UTF-8 decoding fails, try to decode as ISO-8859-1
-            content_str = content.decode("iso-8859-1")
-
-        self.logger.debug(f"Response content: {content_str}")
-
+        content = e.read().decode("utf-8")
+        self.logger.debug(f"Response content: {content}")
         if e.code == 403:
             error_msg = (
-                "Received a 403 Forbidden error. Your session key might be invalid. "
+                "Received a 403 Forbidden error after multiple retries. Your session key might be invalid. "
                 "Please try logging out and logging in again. If the issue persists, "
                 "you can try using the claude.ai-curl provider as a workaround:\n"
                 "claudesync api logout\n"
@@ -102,23 +90,19 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             )
             self.logger.error(error_msg)
             raise ProviderError(error_msg)
-        elif e.code == 429:
+        if e.code == 429:
             try:
-                error_data = json.loads(content_str)
+                error_data = json.loads(content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
                 ).astimezone()
                 formatted_time = resets_at_local.strftime("%a %b %d %Y %H:%M:%S %Z%z")
-                error_msg = f"Message limit exceeded. Try again after {formatted_time}"
+                print(f"Message limit exceeded. Try again after {formatted_time}")
             except (KeyError, json.JSONDecodeError) as parse_error:
-                error_msg = f"HTTP 429: Too Many Requests. Failed to parse error response: {parse_error}"
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
-        else:
-            error_msg = f"API request failed with status code {e.code}: {content_str}"
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
+                print(f"Failed to parse error response: {parse_error}")
+            raise ProviderError("HTTP 429: Too Many Requests")
+        raise ProviderError(f"API request failed: {str(e)}")
 
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
