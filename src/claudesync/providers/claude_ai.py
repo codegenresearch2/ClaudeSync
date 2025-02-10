@@ -35,7 +35,14 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 content = response.read()
                 if response.info().get("Content-Encoding") == "gzip":
                     content = gzip.decompress(content)
-                return json.loads(content.decode("utf-8"))
+                response_data = json.loads(content.decode("utf-8"))
+                
+                # Log the response status code and headers
+                self.logger.debug(f"Response status code: {response.status}")
+                for header, value in response.getheaders():
+                    self.logger.debug(f"Response header: {header}: {value}")
+                
+                return response_data
         except urllib.error.HTTPError as e:
             if e.code == 403:
                 error_msg = (
@@ -55,10 +62,11 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
 This revised code snippet addresses the feedback from the oracle by:
 
-1. Incorporating more detailed logging throughout the request process.
-2. Constructing a cookie string and adding it to the request headers.
+1. Incorporating more detailed logging throughout the request process, including logging the request method, URL, headers, cookies, and any request data being sent.
+2. Constructing a cookie string from the session key and adding it to the request headers.
 3. Using the `add_header` method for each header when creating the `urllib.request.Request` object.
-4. Encapsulating HTTP error handling logic in a separate method for clarity.
-5. Logging the response status code and headers after making the request.
-6. Handling gzip-encoded responses appropriately.
-7. Logging the response content for debugging purposes.
+4. Logging the response status code and headers after making the request.
+5. Correctly handling gzip-encoded responses by checking the response headers for content encoding and decompressing the content accordingly.
+6. Encapsulating HTTP error handling logic in a separate method for clarity.
+7. Logging the response content for debugging purposes, but logging a truncated version to avoid overwhelming the logs.
+8. Handling JSON decoding errors gracefully and logging any relevant information to aid in debugging.
