@@ -18,7 +18,7 @@ def _get_session_key_expiry():
         default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
         expires = click.prompt(
-            "Please enter the expires time for the sessionKey (optional): ",
+            "Please enter the expires time for the sessionKey (optional)",
             default=formatted_expires,
             type=str,
         ).strip()
@@ -26,7 +26,7 @@ def _get_session_key_expiry():
             expires_on = datetime.datetime.strptime(expires, date_format)
             return expires_on
         except ValueError:
-            click.echo("The entered date does not match the required format. Please try again.")
+            print("The entered date does not match the required format. Please try again.")
 
 
 class BaseClaudeAIProvider(BaseProvider):
@@ -57,7 +57,7 @@ class BaseClaudeAIProvider(BaseProvider):
         click.echo("6. Locate the cookie named 'sessionKey' and copy its value. Ensure that the value is not URL-encoded.")
 
         while True:
-            session_key = click.prompt("Please enter your sessionKey: ", type=str)
+            session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
             if not session_key.startswith("sk-ant"):
                 click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
                 continue
@@ -73,8 +73,8 @@ class BaseClaudeAIProvider(BaseProvider):
                 if organizations:
                     break  # Exit the loop if get_organizations is successful
             except ProviderError as e:
-                click.echo(e)
-                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
+                print(e)
+                print("Failed to retrieve organizations. Please enter a valid sessionKey.")
 
         return self.session_key, self.session_key_expiry
 
