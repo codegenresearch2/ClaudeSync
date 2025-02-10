@@ -14,57 +14,40 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
-            "Accept-Encoding": "gzip",
         }
 
-        cookies = {
-            "sessionKey": self.session_key,
-        }
+        if self.session_key:
+            headers["Cookie"] = f"sessionKey={self.session_key}"
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
             if data:
                 self.logger.debug(f"Request data: {data}")
 
-            # Prepare the request
-            req = urllib.request.Request(url, method=method)
-            for key, value in headers.items():
-                req.add_header(key, value)
-
-            # Add cookies
-            cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-            req.add_header("Cookie", cookie_string)
-
-            # Add data if present
+            req = urllib.request.Request(url, method=method, headers=headers)
             if data:
                 json_data = json.dumps(data).encode("utf-8")
                 req.data = json_data
 
-            # Make the request
             with urllib.request.urlopen(req) as response:
-                self.logger.debug(f"Response status code: {response.status}")
-                self.logger.debug(f"Response headers: {response.headers}")
-
-                # Handle gzip encoding
                 content_encoding = response.headers.get("Content-Encoding", "")
+                content = response.read()
+
                 if content_encoding == "gzip":
-                    content = gzip.decompress(response.read())
-                else:
-                    content = response.read()
+                    content = gzip.decompress(content)
 
                 content_str = content.decode("utf-8")
                 self.logger.debug(f"Response content: {content_str[:1000]}...")
 
-                if not content:
+                if not content_str:
                     return None
 
                 try:
                     return json.loads(content_str)
-                except json.JSONDecodeError as json_err:
+                except json.JSONDecodeError as e:
                     error_message = (
-                        f"Failed to parse JSON response: {content_str}. Reason: {json_err}. Request headers: {headers}"
+                        f"Failed to parse JSON response: {content_str}. Reason: {e}. Request headers: {headers}"
                     )
                     self.logger.error(error_message)
                     raise ProviderError(error_message)
@@ -74,19 +57,21 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         except urllib.error.URLError as e:
             self.logger.error(f"URL Error: {str(e)}")
             raise ProviderError(f"API request failed: {str(e)}")
-        except json.JSONDecodeError as json_err:
-            self.logger.error(f"Failed to parse JSON response: {json_err}")
-            raise ProviderError(f"Invalid JSON response from API: {json_err}")
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse JSON response: {e}")
+            raise ProviderError(f"Invalid JSON response from API: {e}")
 
     def handle_http_error(self, e):
+        try:
+            response_content = e.read().decode("utf-8")
+        except UnicodeDecodeError:
+            response_content = e.read().decode("iso-8859-1")
+
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-        try:
-            content = e.read().decode("utf-8")
-        except UnicodeDecodeError:
-            content = e.read().decode("iso-8859-1")
-        self.logger.debug(f"Response content: {content}")
+        self.logger.debug(f"Response content: {response_content}")
+
         if e.code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
@@ -99,7 +84,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             raise ProviderError(error_msg)
         elif e.code == 429:
             try:
-                error_data = json.loads(content)
+                error_data = json.loads(response_content)
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
@@ -112,7 +97,7 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         else:
             error_message = (
                 f"API request failed with status code {e.code}. "
-                f"Response content: {content}. Request headers: {headers}"
+                f"Response content: {response_content}. Request headers: {headers}"
             )
             self.logger.error(error_message)
             raise ProviderError(error_message)
