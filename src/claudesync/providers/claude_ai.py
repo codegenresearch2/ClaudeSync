@@ -16,8 +16,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
             "Content-Type": "application/json",
         }
 
-        if self.session_key:
-            headers["Cookie"] = f"sessionKey={self.session_key}"
+        cookies = {"sessionKey": self.session_key}
+        cookie_header = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+        headers["Cookie"] = cookie_header
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
@@ -45,9 +46,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
 
                 try:
                     return json.loads(content_str)
-                except json.JSONDecodeError as e:
+                except json.JSONDecodeError as json_err:
                     error_message = (
-                        f"Failed to parse JSON response: {content_str}. Reason: {e}. Request headers: {headers}"
+                        f"Failed to parse JSON response: {content_str}. Reason: {json_err}. Request headers: {headers}"
                     )
                     self.logger.error(error_message)
                     raise ProviderError(error_message)
@@ -57,9 +58,9 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         except urllib.error.URLError as e:
             self.logger.error(f"URL Error: {str(e)}")
             raise ProviderError(f"API request failed: {str(e)}")
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse JSON response: {e}")
-            raise ProviderError(f"Invalid JSON response from API: {e}")
+        except json.JSONDecodeError as json_err:
+            self.logger.error(f"Failed to parse JSON response: {json_err}")
+            raise ProviderError(f"Invalid JSON response from API: {json_err}")
 
     def handle_http_error(self, e):
         try:
