@@ -1,9 +1,9 @@
 import os
 import hashlib
+import logging
 from functools import wraps
 import click
 import pathspec
-import logging
 from claudesync.exceptions import ConfigurationError, ProviderError
 from claudesync.provider_factory import get_provider
 from claudesync.config_manager import ConfigManager
@@ -15,7 +15,8 @@ config_manager = ConfigManager()
 def normalize_and_calculate_md5(content):
     """
     Normalize the content by replacing Windows-style line endings with Unix-style line endings,
-    and then calculate the MD5 checksum of the normalized content.
+    and then calculate the MD5 checksum of the normalized content. The function also strips
+    leading and trailing whitespace from the content before calculating the checksum.
 
     Args:
         content (str): The content to be normalized and hashed.
@@ -23,7 +24,7 @@ def normalize_and_calculate_md5(content):
     Returns:
         str: The hexadecimal MD5 checksum of the normalized content.
     """
-    normalized_content = content.replace("\r\n", "\n")
+    normalized_content = content.replace("\r\n", "\n").replace("\r", "\n").strip()
     return hashlib.md5(normalized_content.encode("utf-8")).hexdigest()
 
 
@@ -136,7 +137,7 @@ def get_local_files(local_path):
     gitignore = load_gitignore(local_path)
     claudeignore = load_claudeignore(local_path)
     files = {}
-    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}
+    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}
 
     for root, dirs, filenames in os.walk(local_path):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -144,8 +145,6 @@ def get_local_files(local_path):
         rel_root = "" if rel_root == "." else rel_root
 
         for filename in filenames:
-            if filename == ".gitignore":
-                continue
             rel_path = os.path.join(rel_root, filename)
             full_path = os.path.join(root, filename)
 
