@@ -14,7 +14,10 @@ def retry_on_403(max_retries=3, retry_delay=1):
                     return func(self, *args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
-                        logger.warning(f"Received 403 error. Retrying in {retry_delay} seconds... (attempt {attempt + 2} of {max_retries})")
+                        if hasattr(self, 'logger'):
+                            self.logger.warning(f"Received 403 error. Retrying in {retry_delay} seconds... (attempt {attempt + 2} of {max_retries})")
+                        else:
+                            print(f"Received 403 error. Retrying in {retry_delay} seconds... (attempt {attempt + 2} of {max_retries})")
                         time.sleep(retry_delay)
                     else:
                         raise
@@ -43,6 +46,7 @@ class SyncManager:
         self.two_way_sync = config.get("two_way_sync", False)
         self.max_retries = 3  # Maximum number of retries for 403 errors
         self.retry_delay = 1  # Delay between retries in seconds
+        self.logger = logging.getLogger(__name__)  # Initialize logger
 
     @retry_on_403()
     def sync(self, local_files, remote_files):
@@ -87,7 +91,7 @@ class SyncManager:
                     pbar.update(1)
 
         if not self.config.get("prune_remote_files"):
-            logger.debug("Remote pruning is not enabled.")
+            self.logger.debug("Remote pruning is not enabled.")
         else:
             self.prune_remote_files(remote_files, remote_files_to_delete)
 
@@ -115,7 +119,7 @@ class SyncManager:
         """
         remote_checksum = compute_md5_hash(remote_file["content"])
         if local_checksum != remote_checksum:
-            logger.debug(f"Updating {local_file} on remote...")
+            self.logger.debug(f"Updating {local_file} on remote...")
             with tqdm(total=2, desc=f"Updating {local_file}", leave=False) as pbar:
                 self.provider.delete_file(
                     self.active_organization_id,
@@ -150,7 +154,7 @@ class SyncManager:
         Returns:
             None
         """
-        logger.debug(f"Uploading new file {local_file} to remote...")
+        self.logger.debug(f"Uploading new file {local_file} to remote...")
         with open(
             os.path.join(self.local_path, local_file), "r", encoding="utf-8"
         ) as file:
@@ -184,7 +188,7 @@ class SyncManager:
                         remote_file["created_at"].replace("Z", "+00:00")
                     ).timestamp()
                     os.utime(local_file_path, (remote_timestamp, remote_timestamp))
-                    logger.debug(f"Updated timestamp on local file {local_file_path}")
+                    self.logger.debug(f"Updated timestamp on local file {local_file_path}")
 
     def sync_remote_to_local(self, remote_file, remote_files_to_delete, synced_files):
         """
@@ -230,7 +234,7 @@ class SyncManager:
             remote_file["created_at"].replace("Z", "+00:00")
         )
         if remote_mtime > local_mtime:
-            logger.debug(
+            self.logger.debug(
                 f"Updating local file {remote_file['file_name']} from remote..."
             )
             with open(local_file_path, "w", encoding="utf-8") as file:
@@ -254,7 +258,7 @@ class SyncManager:
         Returns:
             None
         """
-        logger.debug(
+        self.logger.debug(
             f"Creating new local file {remote_file['file_name']} from remote..."
         )
         with tqdm(
@@ -279,7 +283,7 @@ class SyncManager:
             None
         """
         if not self.config.get("prune_remote_files"):
-            logger.debug("Remote pruning is not enabled.")
+            self.logger.debug("Remote pruning is not enabled.")
             return
 
         for file_to_delete in list(remote_files_to_delete):
@@ -297,7 +301,7 @@ class SyncManager:
         Returns:
             None
         """
-        logger.debug(f"Deleting {file_to_delete} from remote...")
+        self.logger.debug(f"Deleting {file_to_delete} from remote...")
         remote_file = next(
             rf for rf in remote_files if rf["file_name"] == file_to_delete
         )
