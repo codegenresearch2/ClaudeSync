@@ -24,14 +24,14 @@ def retry_on_403(max_retries=3, delay=1):
     """
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(*args, **kwargs):
             for attempt in range(max_retries):
                 try:
-                    return func(self, *args, **kwargs)
+                    return func(*args, **kwargs)
                 except ProviderError as e:
                     if "403 Forbidden" in str(e) and attempt < max_retries - 1:
                         logger.warning(
-                            f"Received 403 error. Retrying in {delay} seconds..."
+                            f"Received 403 error. Retrying in {delay} seconds... (Attempt {attempt + 1}/{max_retries})"
                         )
                         time.sleep(delay)
                     else:
@@ -59,26 +59,11 @@ class SyncManager:
         self.local_path = config.get("local_path")
         self.upload_delay = config.get("upload_delay", 0.5)
         self.two_way_sync = config.get("two_way_sync", False)
-        self.max_retries = config.get("max_retries", 3)
-        self.retry_delay = config.get("retry_delay", 1)
+        self.max_retries = max_retries
+        self.retry_delay = delay
 
         # Check for existing remote projects
         self.check_existing_remote_projects()
-
-    def check_existing_remote_projects(self):
-        """
-        Check for existing remote projects and handle any errors.
-        """
-        try:
-            projects = self.provider.get_projects(self.active_organization_id, include_archived=False)
-            if not projects:
-                logger.info("No existing remote projects found.")
-            else:
-                logger.info("Existing remote projects:")
-                for project in projects:
-                    logger.info(f"  - {project['name']} (ID: {project['id']})")
-        except ProviderError as e:
-            logger.error(f"Error checking existing remote projects: {str(e)}")
 
     # Rest of the SyncManager class methods remain unchanged
 
