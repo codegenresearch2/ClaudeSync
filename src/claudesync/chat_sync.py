@@ -10,13 +10,13 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
-def save_artifacts(chat_folder, artifacts, message_context):
+def save_artifacts(artifacts, chat_folder, message_context):
     """
     Save artifacts to the specified chat folder.
 
     Args:
-        chat_folder (str): The folder where the artifacts will be saved.
         artifacts (list): A list of dictionaries containing artifact information.
+        chat_folder (str): The folder where the artifacts will be saved.
         message_context (dict): The context of the message containing the artifacts.
     """
     artifact_folder = os.path.join(chat_folder, "artifacts")
@@ -31,7 +31,31 @@ def save_artifacts(chat_folder, artifacts, message_context):
     logger.info(f"Saved {len(artifacts)} artifacts in message {message_context['message_uuid']}")
 
 
-def sync_chat(provider, config, chat, active_project_id, organization_id, sync_all):
+def process_message(provider, config, chat_folder, message, organization_id, project_id):
+    """
+    Process a single message and save its content.
+
+    Args:
+        provider: The API provider instance.
+        config: The configuration manager instance.
+        chat_folder (str): The folder where the message will be saved.
+        message (dict): The message metadata.
+        organization_id (str): The ID of the organization.
+        project_id (str): The ID of the project.
+    """
+    message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+    if not os.path.exists(message_file):
+        with open(message_file, "w") as f:
+            json.dump(message, f, indent=2)
+
+    if message["sender"] == "assistant":
+        artifacts = extract_artifacts(message["text"])
+        if artifacts:
+            logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+            save_artifacts(artifacts, chat_folder, {"message_uuid": message["uuid"]})
+
+
+def sync_chat(provider, config, chat, organization_id, project_id):
     """
     Synchronize a single chat and its artifacts.
 
@@ -39,9 +63,8 @@ def sync_chat(provider, config, chat, active_project_id, organization_id, sync_a
         provider: The API provider instance.
         config: The configuration manager instance.
         chat (dict): The chat metadata.
-        active_project_id (str): The ID of the active project.
         organization_id (str): The ID of the organization.
-        sync_all (bool): If True, sync all chats regardless of project. If False, only sync chats for the active project.
+        project_id (str): The ID of the project.
     """
     chat_folder = os.path.join(config.get("local_path"), "claude_chats", chat["uuid"])
     
@@ -62,20 +85,7 @@ def sync_chat(provider, config, chat, active_project_id, organization_id, sync_a
 
     # Process each message in the chat
     for message in full_chat["chat_messages"]:
-        # Save the message
-        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-        if not os.path.exists(message_file):
-            with open(message_file, "w") as f:
-                json.dump(message, f, indent=2)
-
-        # Handle artifacts in assistant messages
-        if message["sender"] == "assistant":
-            artifacts = extract_artifacts(message["text"])
-            if artifacts:
-                logger.info(
-                    f"Found {len(artifacts)} artifacts in message {message['uuid']}"
-                )
-                save_artifacts(chat_folder, artifacts, {"message_uuid": message["uuid"]})
+        process_message(provider, config, chat_folder, message, organization_id, project_id)
 
 
 def sync_chats(provider, config, sync_all=False):
@@ -105,8 +115,8 @@ def sync_chats(provider, config, sync_all=False):
             "No active organization set. Please select an organization."
         )
 
-    active_project_id = config.get("active_project_id")
-    if not active_project_id and not sync_all:
+    project_id = config.get("active_project_id")
+    if not project_id and not sync_all:
         raise ConfigurationError(
             "No active project set. Please select a project or use the -a flag to sync all chats."
         )
@@ -120,10 +130,10 @@ def sync_chats(provider, config, sync_all=False):
 
     for chat in tqdm(chats, desc="Syncing chats"):
         if sync_all or (
-            chat.get("project") and chat["project"].get("uuid") == active_project_id
+            chat.get("project") and chat["project"].get("uuid") == project_id
         ):
             logger.info(f"Processing chat {chat['uuid']}")
-            sync_chat(provider, config, chat, active_project_id, organization_id, sync_all)
+            sync_chat(provider, config, chat, organization_id, project_id)
         else:
             logger.debug(
                 f"Skipping chat {chat['uuid']} as it doesn't belong to the active project"
