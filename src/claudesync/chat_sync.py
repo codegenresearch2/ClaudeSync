@@ -34,33 +34,6 @@ def save_artifacts(artifacts, chat_folder, message):
             logger.debug(f"Artifact {artifact['identifier']} already exists, skipping.")
 
 
-def process_message(provider, config, chat_folder, message, organization_id, project_id):
-    """
-    Process a single message and save its content.
-
-    Args:
-        provider: The API provider instance.
-        config: The configuration manager instance.
-        chat_folder (str): The folder where the message will be saved.
-        message (dict): The message metadata.
-        organization_id (str): The ID of the organization.
-        project_id (str): The ID of the project.
-    """
-    message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-    if not os.path.exists(message_file):
-        with open(message_file, "w") as f:
-            json.dump(message, f, indent=2)
-        logger.info(f"Saved message {message['uuid']}")
-
-        if message["sender"] == "assistant":
-            artifacts = extract_artifacts(message["text"])
-            if artifacts:
-                logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-                save_artifacts(artifacts, chat_folder, message)
-    else:
-        logger.debug(f"Message {message['uuid']} already exists, skipping.")
-
-
 def sync_chat(provider, config, chat, organization_id, project_id):
     """
     Synchronize a single chat and its artifacts.
@@ -92,7 +65,19 @@ def sync_chat(provider, config, chat, organization_id, project_id):
 
     # Process each message in the chat
     for message in full_chat["chat_messages"]:
-        process_message(provider, config, chat_folder, message, organization_id, project_id)
+        message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+        if not os.path.exists(message_file):
+            with open(message_file, "w") as f:
+                json.dump(message, f, indent=2)
+            logger.info(f"Saved message {message['uuid']}")
+
+            if message["sender"] == "assistant":
+                artifacts = extract_artifacts(message["text"])
+                if artifacts:
+                    logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
+                    save_artifacts(artifacts, chat_folder, message)
+        else:
+            logger.debug(f"Message {message['uuid']} already exists, skipping.")
 
 
 def sync_chats(provider, config, sync_all=False):
