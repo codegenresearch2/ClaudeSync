@@ -74,11 +74,11 @@ def create(config):
         description = f"Submodule '{submodule_name}' for project '{active_project_name}' (ID: {active_project_id})"
 
         # Check if a project for this submodule already exists
-        project_exists = any(
-            project["name"] == new_project_name for project in all_remote_projects
+        existing_project = next(
+            (project for project in all_remote_projects if project["name"] == new_project_name), None
         )
 
-        if project_exists:
+        if existing_project:
             click.echo(f"{i}. Project for submodule '{submodule_name}' already exists. Skipping creation.")
             continue
 
