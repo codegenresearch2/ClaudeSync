@@ -1,9 +1,8 @@
 import os
 import click
-from tqdm import tqdm
-import requests
 from retry import retry
 from urllib3.exceptions import HTTPError
+from claudesync.exceptions import ProviderError
 
 # Configuration object to manage state and settings
 config = {
@@ -21,33 +20,53 @@ def handle_errors(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
-        except Exception as e:
+        except ProviderError as e:
             click.echo(f"An error occurred: {str(e)}")
+        except Exception as e:
+            click.echo(f"An unexpected error occurred: {str(e)}")
     return wrapper
 
+# Command group for project management
+@click.group()
+@click.pass_obj
+def project(config):
+    """Manage ai projects within the active organization."""
+    pass
+
 # Command to create a new project
-@click.command()
-@click.option('--title', prompt='Enter a title for your new project', help='The title of the new project.')
-@click.option('--description', default='', help='A description for the new project.')
+@project.command()
+@click.pass_obj
 @handle_errors
-def create(config, title, description):
+def create(config):
     """Create a new project in the active organization."""
-    payload = {
-        'title': title,
-        'description': description
-    }
-    response = requests.post(f"{config['API_ENDPOINT']}/projects", headers={'Authorization': config['AUTH_TOKEN']}, json=payload)
-    if response.status_code == 201:
-        click.echo(f"Project '{title}' created successfully.")
-    else:
-        click.echo(f"Failed to create project: {response.status_code}")
+    provider = validate_and_get_provider(config)
+    active_organization_id = config.get("active_organization_id")
+
+    title = click.prompt("Enter a title for your new project")
+    description = click.prompt("Enter the project description (optional)", default="")
+
+    try:
+        new_project = provider.create_project(
+            active_organization_id, title, description
+        )
+        click.echo(
+            f"Project '{new_project['title']}' (uuid: {new_project['uuid']}) has been created successfully."
+        )
+
+        config['active_project_id'] = new_project["uuid"]
+        config['active_project_name'] = new_project["title"]
+    except ProviderError as e:
+        click.echo(f"Failed to create project: {str(e)}")
 
 # Command to archive an existing project
-@click.command()
+@project.command()
+@click.pass_obj
 @handle_errors
 def archive(config):
     """Archive an existing project."""
-    projects = get_projects(config)
+    provider = validate_and_get_provider(config)
+    active_organization_id = config.get("active_organization_id")
+    projects = provider.get_projects(active_organization_id, include_archived=False)
     if not projects:
         click.echo("No active projects found.")
         return
@@ -59,35 +78,29 @@ def archive(config):
         project_id = projects[selection - 1]['id']
         confirm = click.confirm(f"Are you sure you want to archive the project '{projects[selection - 1]['title']}'?")
         if confirm:
-            response = requests.put(f"{config['API_ENDPOINT']}/projects/{project_id}/archive", headers={'Authorization': config['AUTH_TOKEN']})
-            if response.status_code == 204:
-                click.echo(f"Project '{projects[selection - 1]['title']}' has been archived.")
-            else:
-                click.echo(f"Failed to archive project: {response.status_code}")
+            provider.archive_project(active_organization_id, project_id)
+            click.echo(f"Project '{projects[selection - 1]['title']}' has been archived.")
     else:
         click.echo("Invalid selection. Please try again.")
 
 # Command to select an active project
-@click.command()
-@click.option('--all', 'show_all', is_flag=True, help='Include submodule projects in the selection')
+@project.command()
+@click.pass_obj
 @handle_errors
-def select(config, show_all):
+def select(config):
     """Set the active project for syncing."""
-    projects = get_projects(config)
+    provider = validate_and_get_provider(config)
+    active_organization_id = config.get("active_organization_id")
+    projects = provider.get_projects(active_organization_id, include_archived=False)
     if not projects:
         click.echo("No active projects found.")
         return
-    selectable_projects = [p for p in projects if "-SubModule-" not in p['title']]
-    if not selectable_projects:
-        click.echo("No active projects found.")
-        return
     click.echo("Available projects:")
-    for idx, project in enumerate(selectable_projects, 1):
-        project_type = "Main Project" if not project['title'].startswith(config['active_project_name'] + "-SubModule-") else "Submodule"
-        click.echo(f"  {idx}. {project['title']} (ID: {project['id']}) - {project_type}")
+    for idx, project in enumerate(projects, 1):
+        click.echo(f"  {idx}. {project['title']} (ID: {project['id']})")
     selection = click.prompt("Enter the number of the project to select", type=int, default=1)
-    if 1 <= selection <= len(selectable_projects):
-        selected_project = selectable_projects[selection - 1]
+    if 1 <= selection <= len(projects):
+        selected_project = projects[selection - 1]
         config['active_project_id'] = selected_project["id"]
         config['active_project_name'] = selected_project["title"]
         click.echo(f"Selected project: {selected_project['title']} (ID: {selected_project['id']})")
@@ -95,12 +108,14 @@ def select(config, show_all):
         click.echo("Invalid selection. Please try again.")
 
 # Command to list all projects
-@click.command()
-@click.option('--all', 'show_all', is_flag=True, help='Include archived projects in the list')
+@project.command()
+@click.pass_obj
 @handle_errors
-def ls(config, show_all):
+def ls(config):
     """List all projects in the active organization."""
-    projects = get_projects(config, show_all)
+    provider = validate_and_get_provider(config)
+    active_organization_id = config.get("active_organization_id")
+    projects = provider.get_projects(active_organization_id, include_archived=True)
     if not projects:
         click.echo("No projects found.")
     else:
@@ -110,10 +125,10 @@ def ls(config, show_all):
             click.echo(f"  - {project['title']} (ID: {project['id']}){status}")
 
 # Command to synchronize the project files
-@click.command()
-@click.option('--category', help='Specify the file category to sync')
+@project.command()
+@click.pass_obj
 @handle_errors
-def sync(config, category):
+def sync(config):
     """Synchronize the project files, including submodules if they exist remotely."""
     provider = validate_and_get_provider(config)
     active_project_id = config.get("active_project_id")
@@ -132,7 +147,7 @@ def sync(config, category):
     ]
     sync_manager = SyncManager(provider, config)
     remote_files = provider.list_files(active_project_id)
-    local_files = get_local_files(local_path, category)
+    local_files = get_local_files(local_path)
     sync_manager.sync(local_files, remote_files)
     click.echo(f"Main project '{config['active_project_name']}' synced successfully.")
     for local_submodule, detected_file in local_submodules:
@@ -143,7 +158,7 @@ def sync(config, category):
         if remote_project:
             click.echo(f"Syncing submodule '{submodule_name}'...")
             submodule_path = os.path.join(local_path, local_submodule)
-            submodule_files = get_local_files(submodule_path, category)
+            submodule_files = get_local_files(submodule_path)
             remote_submodule_files = provider.list_files(remote_project["id"])
             submodule_config = config.copy()
             submodule_config["active_project_id"] = remote_project["id"]
