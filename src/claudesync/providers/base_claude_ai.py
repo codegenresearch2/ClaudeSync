@@ -19,7 +19,7 @@ def _get_session_key_expiry():
         default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
         expires = click.prompt(
-            "Please enter the expires time for the sessionKey",
+            "Please enter the expires time for the sessionKey (optional)",
             default=formatted_expires,
             type=str,
         ).strip()
@@ -66,27 +66,25 @@ class BaseClaudeAIProvider(BaseProvider):
             "Ensure that the value is not URL-encoded."
         )
 
-        while True:
-            session_key = click.prompt("Please enter your sessionKey", type=str)
-            if not session_key.startswith("sk-ant"):
-                click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
-                continue
-            if is_url_encoded(session_key):
-                click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
-                continue
+        session_key = click.prompt("Please enter your sessionKey", type=str, hide_input=True)
+        if not session_key.startswith("sk-ant"):
+            click.echo("Invalid sessionKey format. Please make sure it starts with 'sk-ant'.")
+            return self.login()
+        if is_url_encoded(session_key):
+            click.echo("The session key appears to be URL-encoded. Please provide the decoded version.")
+            return self.login()
 
-            expires = _get_session_key_expiry()
-            self.session_key = session_key
-            self.session_key_expiry = expires
-            try:
-                organizations = self.get_organizations()
-                if organizations:
-                    break  # Exit the loop if get_organizations is successful
-            except ProviderError as e:
-                click.echo(e)
-                click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
-
-        return self.session_key, self.session_key_expiry
+        expires = _get_session_key_expiry()
+        self.session_key = session_key
+        self.session_key_expiry = expires
+        try:
+            organizations = self.get_organizations()
+            if organizations:
+                return self.session_key, self.session_key_expiry
+        except ProviderError as e:
+            click.echo(e)
+            click.echo("Failed to retrieve organizations. Please enter a valid sessionKey.")
+            return self.login()
 
     def get_organizations(self):
         response = self._make_request("GET", "/organizations")
