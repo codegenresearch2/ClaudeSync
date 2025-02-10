@@ -25,7 +25,7 @@ def sync_chats(provider, config, sync_all=False):
     if not local_path:
         raise ConfigurationError("Local path not set. Please configure it.")
 
-    chat_destination = os.path.join(local_path, "chats")
+    chat_destination = os.path.join(local_path, "claude_chats")
     os.makedirs(chat_destination, exist_ok=True)
 
     organization_id = config.get("active_organization_id")
@@ -36,9 +36,9 @@ def sync_chats(provider, config, sync_all=False):
     if not active_project_id and not sync_all:
         raise ConfigurationError("No active project set. Please select a project or use the -a flag to sync all chats.")
 
-    logger.debug(f"Fetching chats for organization {organization_id}")
+    logger.info(f"Fetching chats for organization {organization_id}")
     chats = provider.get_chat_conversations(organization_id)
-    logger.debug(f"Found {len(chats)} chats")
+    logger.info(f"Found {len(chats)} chats")
 
     for chat in tqdm(chats, desc="Syncing chats"):
         sync_chat(provider, organization_id, chat, chat_destination, active_project_id, sync_all)
@@ -92,22 +92,22 @@ def sync_message(message, chat_folder):
         artifacts = extract_artifacts(message["text"])
         if artifacts:
             logger.info(f"Found {len(artifacts)} artifacts in message {message['uuid']}")
-            artifact_folder = os.path.join(chat_folder, "artifacts")
-            os.makedirs(artifact_folder, exist_ok=True)
-            for artifact in artifacts:
-                save_artifact(artifact, artifact_folder)
+            save_artifacts(artifacts, chat_folder)
 
-def save_artifact(artifact, artifact_folder):
+def save_artifacts(artifacts, chat_folder):
     """
-    Save a single artifact to the local folder.
+    Save artifacts to the local folder.
 
     Args:
-        artifact: The artifact data.
-        artifact_folder: The local folder for artifacts.
+        artifacts: A list of artifact data.
+        chat_folder: The local folder for the chat.
     """
-    artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
-    with open(artifact_file, "w") as f:
-        f.write(artifact["content"])
+    artifact_folder = os.path.join(chat_folder, "artifacts")
+    os.makedirs(artifact_folder, exist_ok=True)
+    for artifact in artifacts:
+        artifact_file = os.path.join(artifact_folder, f"{artifact['identifier']}.{get_file_extension(artifact['type'])}")
+        with open(artifact_file, "w") as f:
+            f.write(artifact["content"])
 
 def get_file_extension(artifact_type):
     """
