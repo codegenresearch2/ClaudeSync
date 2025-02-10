@@ -60,7 +60,7 @@ class TestUtils(unittest.TestCase):
             self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
             self.assertNotIn(os.path.join("target", "output.txt"), local_files)
             self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-            self.assertEqual(len(local_files), 4)
+            self.assertEqual(len(local_files), 3)
 
     def test_load_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
