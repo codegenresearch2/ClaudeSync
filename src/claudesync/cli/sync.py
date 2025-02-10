@@ -45,11 +45,11 @@ def sync(config):
     )
     local_files = get_local_files(config.get("local_path"))
     sync_manager.sync(local_files, remote_files)
-    click.echo("Project synchronization completed successfully.")
+    click.echo("Projects synchronized successfully.")
 
     # Sync chats
     sync_chats(provider, config)
-    click.echo("Chat synchronization completed successfully.")
+    click.echo("Chats synchronized successfully.")
 
 
 def validate_local_path(local_path):
