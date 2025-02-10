@@ -1,17 +1,12 @@
 import unittest
 import os
 import tempfile
-import logging
 from claudesync.utils import (
     compute_md5_hash,
     load_gitignore,
     get_local_files,
     load_claudeignore,
 )
-
-# Set up logging for debugging purposes
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 class TestUtils(unittest.TestCase):
 
@@ -43,11 +38,13 @@ class TestUtils(unittest.TestCase):
             with open(os.path.join(tmpdir, "subdir", "file3.txt"), "w") as f:
                 f.write("Content of file3")
 
-            # Create a test~ file
-            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}:
+            # Create VCS directories
+            for vcs in {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}:
                 os.mkdir(os.path.join(tmpdir, vcs))
-                with open(os.path.join(tmpdir, vcs, "test~"), "w") as f:
-                    f.write("*.log\n")
+
+            # Create a test~ file
+            with open(os.path.join(tmpdir, "CVS", "test~"), "w") as f:
+                f.write("*.log\n")
 
             for buildDir in {"target", "build"}:
                 os.mkdir(os.path.join(tmpdir, buildDir))
@@ -58,15 +55,12 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build\ntarget")
 
             local_files = get_local_files(tmpdir)
-            logger.debug(f"Local files: {local_files}")
-
-            self.assertIn("file1.txt", local_files)
-            self.assertIn("file2.py", local_files)
-            self.assertIn(os.path.join("subdir", "file3.txt"), local_files)
-            self.assertNotIn(os.path.join("target", "output.txt"), local_files)
-            self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-            # Ensure ignored files not included
-            self.assertEqual(len(local_files), 4)
+            expected_files = {
+                "file1.txt": "e7f3e6dc7bd7c1d859a2d34b9f3d699e",
+                "file2.py": "5a105e8b9d40e1329780d62ea2265d8a",
+                "subdir/file3.txt": "e7f3e6dc7bd7c1d859a2d34b9f3d699e"
+            }
+            self.assertEqual(local_files, expected_files)
 
     def test_load_claudeignore(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -96,12 +90,11 @@ class TestUtils(unittest.TestCase):
                 f.write("*.log\n/build/\n")
 
             local_files = get_local_files(tmpdir)
-            logger.debug(f"Local files: {local_files}")
-
-            self.assertIn("file1.txt", local_files)
-            self.assertNotIn("file2.log", local_files)
-            self.assertNotIn(os.path.join("build", "output.txt"), local_files)
-
+            expected_files = {
+                "file1.txt": "e7f3e6dc7bd7c1d859a2d34b9f3d699e",
+                "file2.log": "e7f3e6dc7bd7c1d859a2d34b9f3d699e"
+            }
+            self.assertEqual(local_files, expected_files)
 
 if __name__ == "__main__":
     unittest.main()
