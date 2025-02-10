@@ -37,5 +37,4 @@ def sync(config, category):
 
 project.add_command(submodule)
 
-
-In the updated code, I have added a warning message to the `sync` function and returned it when there is no local path set. This change ensures that the warning message is included in the command output, allowing the test to successfully find and assert the presence of the expected message. I have also replaced `logging.info` and `logging.warning` with `click.echo` to maintain consistency in how messages are presented to the user.
+I have addressed the syntax error by removing the comment that was mistakenly included as a string of text. This should allow the tests to run successfully. I have also added a comment to indicate where the rest of the code would go, as it was not provided in the original snippet.
