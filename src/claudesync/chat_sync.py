@@ -10,6 +10,22 @@ from .exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
+def save_message(chat_folder, message):
+    """
+    Save a message to the specified chat folder.
+
+    Args:
+        chat_folder (str): The folder where the message will be saved.
+        message (dict): The message to be saved.
+    """
+    message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
+    if not os.path.exists(message_file):
+        with open(message_file, "w") as f:
+            json.dump(message, f, indent=2)
+    else:
+        logger.info(f"Message file {message_file} already exists, skipping write.")
+
+
 def save_artifacts(artifacts, chat_folder, message):
     """
     Save artifacts to the specified chat folder.
@@ -28,23 +44,7 @@ def save_artifacts(artifacts, chat_folder, message):
             with open(artifact_file, "w") as f:
                 f.write(artifact["content"])
         else:
-            logger.warning(f"Artifact file {artifact_file} already exists, skipping write.")
-
-
-def save_message(chat_folder, message):
-    """
-    Save a message to the specified chat folder.
-
-    Args:
-        chat_folder (str): The folder where the message will be saved.
-        message (dict): The message to be saved.
-    """
-    message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-    if not os.path.exists(message_file):
-        with open(message_file, "w") as f:
-            json.dump(message, f, indent=2)
-    else:
-        logger.warning(f"Message file {message_file} already exists, skipping write.")
+            logger.info(f"Artifact file {artifact_file} already exists, skipping write.")
 
 
 def sync_chat(provider, config, chat, chat_destination):
@@ -116,7 +116,7 @@ def sync_chats(provider, config, sync_all=False):
             logger.info(f"Processing chat {chat['uuid']}")
             sync_chat(provider, config, chat, chat_destination)
         else:
-            logger.debug(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
+            logger.info(f"Skipping chat {chat['uuid']} as it doesn't belong to the active project")
 
     logger.debug(f"Chats and artifacts synchronized to {chat_destination}")
 
