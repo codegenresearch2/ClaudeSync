@@ -13,11 +13,11 @@ config_manager = ConfigManager()
 
 def normalize_and_calculate_md5(content):
     """
-    Calculate the MD5 checksum of the given content after normalizing line endings.
-
+    Normalize the line endings of the input content to Unix-style (\n) and calculate its MD5 checksum.
+    
     Args:
-        content (str): The content for which to calculate the checksum.
-
+        content (str): The content to be normalized and hashed.
+    
     Returns:
         str: The hexadecimal MD5 checksum of the normalized content.
     """
@@ -26,14 +26,13 @@ def normalize_and_calculate_md5(content):
 
 def load_gitignore(base_path):
     """
-    Loads and parses the .gitignore file from the specified base path.
-
+    Load and parse the .gitignore file from the specified base path.
+    
     Args:
         base_path (str): The base directory path where the .gitignore file is located.
-
+    
     Returns:
-        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .gitignore file
-                                    if the file exists; otherwise, None.
+        pathspec.PathSpec or None: A PathSpec object containing the patterns from the .gitignore file if the file exists; otherwise, None.
     """
     gitignore_path = os.path.join(base_path, ".gitignore")
     if os.path.exists(gitignore_path):
@@ -43,13 +42,12 @@ def load_gitignore(base_path):
 
 def is_text_file(file_path, sample_size=8192):
     """
-    Determines if a file is a text file by checking for the absence of null bytes.
-
+    Determine if a file is a text file by checking for the absence of null bytes.
+    
     Args:
         file_path (str): The path to the file to be checked.
-        sample_size (int, optional): The number of bytes to read from the file for checking.
-                                     Defaults to 8192.
-
+        sample_size (int, optional): The number of bytes to read from the file for checking. Defaults to 8192.
+    
     Returns:
         bool: True if the file is likely a text file, False if it is likely binary or an error occurred.
     """
@@ -61,11 +59,11 @@ def is_text_file(file_path, sample_size=8192):
 
 def compute_md5_hash(content):
     """
-    Computes the MD5 hash of the given content.
-
+    Compute the MD5 hash of the given content.
+    
     Args:
         content (str): The content for which to compute the MD5 hash.
-
+    
     Returns:
         str: The hexadecimal MD5 hash of the input content.
     """
@@ -73,15 +71,15 @@ def compute_md5_hash(content):
 
 def should_process_file(file_path, filename, gitignore, base_path, claudeignore):
     """
-    Determines whether a file should be processed based on various criteria.
-
+    Determine whether a file should be processed based on various criteria.
+    
     Args:
         file_path (str): The full path to the file.
         filename (str): The name of the file.
         gitignore (pathspec.PathSpec or None): A PathSpec object containing .gitignore patterns, if available.
         base_path (str): The base directory path of the project.
         claudeignore (pathspec.PathSpec or None): A PathSpec object containing .claudeignore patterns, if available.
-
+    
     Returns:
         bool: True if the file should be processed, False otherwise.
     """
@@ -100,10 +98,10 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
 def process_file(file_path):
     """
     Reads the content of a file and computes its MD5 hash.
-
+    
     Args:
         file_path (str): The path to the file to be processed.
-
+    
     Returns:
         str or None: The MD5 hash of the file's content if successful, None otherwise.
     """
@@ -120,10 +118,10 @@ def process_file(file_path):
 def get_local_files(local_path):
     """
     Retrieves a dictionary of local files within a specified path, applying various filters.
-
+    
     Args:
         local_path (str): The base directory path to search for files.
-
+    
     Returns:
         dict: A dictionary where keys are relative file paths, and values are MD5 hashes of the file contents.
     """
@@ -153,10 +151,10 @@ def get_local_files(local_path):
 def handle_errors(func):
     """
     A decorator that wraps a function to catch and handle specific exceptions.
-
+    
     Args:
         func (Callable): The function to be decorated.
-
+    
     Returns:
         Callable: The decorated function.
     """
@@ -174,15 +172,15 @@ def validate_and_get_provider(config, require_org=True):
     Validates the configuration for the presence of an active provider and session key,
     and optionally checks for an active organization ID. If validation passes, it retrieves
     the provider instance based on the active provider name.
-
+    
     Args:
         config (ConfigManager): The configuration manager instance containing settings.
         require_org (bool, optional): Flag to indicate whether an active organization ID
                                       is required. Defaults to True.
-
+    
     Returns:
         object: An instance of the provider specified in the configuration.
-
+    
     Raises:
         ConfigurationError: If the active provider or session key is missing, or if
                             require_org is True and no active organization ID is set.
@@ -198,7 +196,7 @@ def validate_and_get_provider(config, require_org=True):
 def validate_and_store_local_path(config):
     """
     Prompts the user for the absolute path to their local project directory and stores it in the configuration.
-
+    
     Args:
         config (ConfigManager): The configuration manager instance to store the local path setting.
     """
@@ -224,10 +222,10 @@ def validate_and_store_local_path(config):
 def load_claudeignore(base_path):
     """
     Loads and parses the .claudeignore file from the specified base path.
-
+    
     Args:
         base_path (str): The base directory path where the .claudeignore file is located.
-
+    
     Returns:
         pathspec.PathSpec or None: A PathSpec object containing the patterns from the .claudeignore file
                                     if the file exists; otherwise, None.
