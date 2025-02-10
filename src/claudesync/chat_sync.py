@@ -9,6 +9,9 @@ from .exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
+# Constants for file paths and names
+CHAT_DESTINATION = "chats"
+METADATA_FILE_NAME = "metadata.json"
 
 def sync_chats(provider, config, sync_all=False):
     """
@@ -37,7 +40,7 @@ def sync_chats(provider, config, sync_all=False):
     if not active_project_id and not sync_all:
         raise ConfigurationError("No active project set. Please select a project or use the -a flag to sync all chats.")
 
-    chat_destination = os.path.join(local_path, "chats")
+    chat_destination = os.path.join(local_path, CHAT_DESTINATION)
     os.makedirs(chat_destination, exist_ok=True)
 
     logger.debug(f"Fetching chats for organization {organization_id}")
@@ -55,15 +58,17 @@ def sync_chats(provider, config, sync_all=False):
 
         logger.info(f"Processing chat {chat_id}")
 
-        metadata_file = os.path.join(chat_folder, "metadata.json")
-        with open(metadata_file, "w") as f:
-            json.dump(chat, f, indent=2)
+        metadata_file = os.path.join(chat_folder, METADATA_FILE_NAME)
+        if not os.path.exists(metadata_file):
+            with open(metadata_file, "w") as f:
+                json.dump(chat, f, indent=2)
 
         full_chat = provider.get_chat_conversation(organization_id, chat_id)
         for message in full_chat["chat_messages"]:
             message_file = os.path.join(chat_folder, f"{message['uuid']}.json")
-            with open(message_file, "w") as f:
-                json.dump(message, f, indent=2)
+            if not os.path.exists(message_file):
+                with open(message_file, "w") as f:
+                    json.dump(message, f, indent=2)
 
             if message["sender"] == "assistant":
                 artifacts = extract_artifacts(message["text"])
