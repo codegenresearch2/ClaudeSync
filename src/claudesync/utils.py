@@ -89,6 +89,9 @@ def should_process_file(file_path, filename, gitignore, base_path, claudeignore)
     if filename.endswith("~"):
         return False
     rel_path = os.path.relpath(file_path, base_path)
+    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}
+    if any(dir_name in rel_path for dir_name in exclude_dirs):
+        return False
     if gitignore and gitignore.match_file(rel_path):
         return False
     if claudeignore and claudeignore.match_file(rel_path):
@@ -128,7 +131,7 @@ def get_local_files(local_path):
     gitignore = load_gitignore(local_path)
     claudeignore = load_claudeignore(local_path)
     files = {}
-    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS"}
+    exclude_dirs = {".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", "claude_chats"}
 
     for root, dirs, filenames in os.walk(local_path):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -162,6 +165,7 @@ def handle_errors(func):
             return func(*args, **kwargs)
         except (ConfigurationError, ProviderError) as e:
             click.echo(f"Error: {str(e)}")
+            logger.error(f"Error in function {func.__name__}: {str(e)}")
 
     return wrapper
 
