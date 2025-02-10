@@ -14,24 +14,27 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0",
             "Content-Type": "application/json",
-            "Accept-Encoding": "gzip",
         }
+
+        # Add Accept-Encoding header to handle gzip encoding
+        headers["Accept-Encoding"] = "gzip"
 
         cookies = {
             "sessionKey": self.session_key,
         }
 
+        # Construct a single cookie string
+        cookie_header = "; ".join([f"{key}={value}" for key, value in cookies.items()])
+        headers["Cookie"] = cookie_header
+
         try:
             self.logger.debug(f"Making {method} request to {url}")
             self.logger.debug(f"Headers: {headers}")
-            self.logger.debug(f"Cookies: {cookies}")
             if data:
                 self.logger.debug(f"Request data: {data}")
 
             # Prepare the request
             req = urllib.request.Request(url, method=method, headers=headers)
-            for key, value in cookies.items():
-                req.add_header(key, value)
 
             # Add data if present
             if data:
@@ -72,8 +75,13 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
         self.logger.debug(f"Request failed: {str(e)}")
         self.logger.debug(f"Response status code: {e.code}")
         self.logger.debug(f"Response headers: {e.headers}")
-        content = e.read().decode("utf-8")
-        self.logger.debug(f"Response content: {content}")
+        try:
+            content = e.read().decode("utf-8")
+            self.logger.debug(f"Response content: {content}")
+        except UnicodeDecodeError:
+            self.logger.debug(f"Response content could not be decoded.")
+
+        error_msg = f"HTTP {e.code} error: {e.reason}"
         if e.code == 403:
             error_msg = (
                 "Received a 403 Forbidden error. Your session key might be invalid. "
@@ -82,21 +90,19 @@ class ClaudeAIProvider(BaseClaudeAIProvider):
                 "claudesync api logout\n"
                 "claudesync api login claude.ai-curl"
             )
-            self.logger.error(error_msg)
-            raise ProviderError(error_msg)
-        if e.code == 429:
+        elif e.code == 429:
             try:
-                error_data = json.loads(content)
+                error_data = json.loads(e.read().decode("utf-8"))
                 resets_at_unix = json.loads(error_data["error"]["message"])["resetsAt"]
                 resets_at_local = datetime.fromtimestamp(
                     resets_at_unix, tz=timezone.utc
                 ).astimezone()
                 formatted_time = resets_at_local.strftime("%a %b %d %Y %H:%M:%S %Z%z")
-                print(f"Message limit exceeded. Try again after {formatted_time}")
+                error_msg = f"Message limit exceeded. Try again after {formatted_time}"
             except (KeyError, json.JSONDecodeError) as parse_error:
-                print(f"Failed to parse error response: {parse_error}")
-            raise ProviderError("HTTP 429: Too Many Requests")
-        raise ProviderError(f"API request failed: {str(e)}")
+                error_msg = "Failed to parse error response."
+        self.logger.error(error_msg)
+        raise ProviderError(error_msg)
 
     def _make_request_stream(self, method, endpoint, data=None):
         url = f"{self.BASE_URL}{endpoint}"
