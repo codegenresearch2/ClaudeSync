@@ -22,7 +22,7 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 200
         mock_response.headers = {'Content-Type': 'application/json'}
-        mock_response.read.return_value = json.dumps({"key": "value"}).encode('utf-8')
+        mock_response.__enter__.return_value.read.return_value = json.dumps({"key": "value"}).encode('utf-8')
         mock_urlopen.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
@@ -44,7 +44,7 @@ class TestClaudeAIProvider(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status = 403
         mock_response.headers = {'Content-Type': 'application/json'}
-        mock_response.read.return_value = json.dumps({"error": "Forbidden"}).encode('utf-8')
+        mock_response.__enter__.return_value.read.return_value = json.dumps({"error": "Forbidden"}).encode('utf-8')
         mock_urlopen.return_value = mock_response
 
         with self.assertRaises(ProviderError) as context:
@@ -61,7 +61,7 @@ class TestClaudeAIProvider(unittest.TestCase):
         with gzip.GzipFile(fileobj=gzip_content, mode='w') as gzip_file:
             gzip_file.write(json.dumps({"key": "value"}).encode('utf-8'))
         gzip_content.seek(0)
-        mock_response.read.return_value = gzip_content.read()
+        mock_response.__enter__.return_value.read.return_value = gzip_content.read()
         mock_urlopen.return_value = mock_response
 
         result = self.provider._make_request("GET", "/test")
