@@ -1,7 +1,8 @@
 import datetime
 import unittest
-from unittest.mock import patch, MagicMock, call, ANY
+from unittest.mock import patch, MagicMock
 from claudesync.providers.base_claude_ai import BaseClaudeAIProvider
+import click
 
 
 class TestBaseClaudeAIProvider(unittest.TestCase):
@@ -10,9 +11,10 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         self.provider = BaseClaudeAIProvider("test_session_key")
 
     @patch("claudesync.cli.main.ConfigManager")
+    @patch("claudesync.providers.base_claude_ai.urllib.request.urlopen")
     @patch("claudesync.providers.base_claude_ai.click.echo")
     @patch("claudesync.providers.base_claude_ai.click.prompt")
-    def test_login(self, mock_prompt, mock_echo, mock_config_manager):
+    def test_login(self, mock_prompt, mock_echo, mock_urlopen, mock_config_manager):
         mock_prompt.side_effect = ["sk-ant-test123", "Tue, 03 Sep 2099 05:49:08 GMT"]
         self.provider.get_organizations = MagicMock(
             return_value=[{"id": "org1", "name": "Test Org"}]
@@ -28,9 +30,9 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_echo.assert_called()
 
         expected_calls = [
-            call("Please enter your sessionKey", type=str, hide_input=True),
+            call("Please enter your sessionKey", type=str),
             call(
-                "Please enter the expires time for the sessionKey (optional)",
+                "Please enter the expires time for the sessionKey",
                 default=ANY,
                 type=str,
             ),
@@ -40,9 +42,10 @@ class TestBaseClaudeAIProvider(unittest.TestCase):
         mock_prompt.assert_has_calls(expected_calls, any_order=True)
 
     @patch("claudesync.cli.main.ConfigManager")
+    @patch("claudesync.providers.base_claude_ai.urllib.request.urlopen")
     @patch("claudesync.providers.base_claude_ai.click.echo")
     @patch("claudesync.providers.base_claude_ai.click.prompt")
-    def test_login_invalid_key(self, mock_prompt, mock_echo, mock_config_manager):
+    def test_login_invalid_key(self, mock_prompt, mock_echo, mock_urlopen, mock_config_manager):
         mock_prompt.side_effect = [
             "invalid_key",
             "sk-ant-test123",
