@@ -1,11 +1,13 @@
 import datetime
 import logging
-import urllib
+import urllib.parse
 
 import click
 from .base_provider import BaseProvider
 from ..config_manager import ConfigManager
 from ..exceptions import ProviderError
+import gzip
+import http.client
 
 
 def is_url_encoded(s):
@@ -16,12 +18,10 @@ def is_url_encoded(s):
 def _get_session_key_expiry():
     while True:
         date_format = "%a, %d %b %Y %H:%M:%S %Z"
-        default_expires = datetime.datetime.now(
-            datetime.timezone.utc
-        ) + datetime.timedelta(days=30)
+        default_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30)
         formatted_expires = default_expires.strftime(date_format).strip()
         expires = click.prompt(
-            "Please enter the expires time for the sessionKey (optional)",
+            "Please enter the expires time for the sessionKey",
             default=formatted_expires,
             type=str,
         ).strip()
@@ -29,9 +29,7 @@ def _get_session_key_expiry():
             expires_on = datetime.datetime.strptime(expires, date_format)
             return expires_on
         except ValueError:
-            print(
-                "The entered date does not match the required format. Please try again."
-            )
+            print("The entered date does not match the required format. Please try again.")
 
 
 class BaseClaudeAIProvider(BaseProvider):
@@ -71,9 +69,7 @@ class BaseClaudeAIProvider(BaseProvider):
         )
 
         while True:
-            session_key = click.prompt(
-                "Please enter your sessionKey", type=str, hide_input=True
-            )
+            session_key = click.prompt("Please enter your sessionKey", type=str)
             if not session_key.startswith("sk-ant"):
                 click.echo(
                     "Invalid sessionKey format. Please make sure it starts with 'sk-ant'."
@@ -107,16 +103,12 @@ class BaseClaudeAIProvider(BaseProvider):
         return [
             {"id": org["uuid"], "name": org["name"]}
             for org in response
-            if (
-                {"chat", "claude_pro"}.issubset(set(org.get("capabilities", [])))
-                or {"chat", "raven"}.issubset(set(org.get("capabilities", [])))
-            )
+            if ({"chat", "claude_pro"}.issubset(set(org.get("capabilities", []))) or
+                {"chat", "raven"}.issubset(set(org.get("capabilities", []))))
         ]
 
     def get_projects(self, organization_id, include_archived=False):
-        response = self._make_request(
-            "GET", f"/organizations/{organization_id}/projects"
-        )
+        response = self._make_request("GET", f"/organizations/{organization_id}/projects")
         projects = [
             {
                 "id": project["uuid"],
@@ -197,4 +189,28 @@ class BaseClaudeAIProvider(BaseProvider):
         return self._make_request("POST", endpoint, data)
 
     def _make_request(self, method, endpoint, data=None):
-        raise NotImplementedError("This method should be implemented by subclasses")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.session_key}"
+        }
+        if data:
+            body = urllib.parse.urlencode(data).encode("utf-8")
+        else:
+            body = None
+
+        conn = http.client.HTTPSConnection("api.claude.ai")
+        conn.request(method, endpoint, body, headers)
+        response = conn.getresponse()
+
+        if response.getheader("Content-Encoding") == "gzip":
+            import io
+            buf = io.BytesIO(response.read())
+            f = gzip.GzipFile(fileobj=buf)
+            response_data = f.read().decode("utf-8")
+        else:
+            response_data = response.read().decode("utf-8")
+
+        if response.status >= 400:
+            raise ProviderError(f"HTTP {response.status}: {response_data}")
+
+        return response_data
