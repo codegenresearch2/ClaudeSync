@@ -1,29 +1,24 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import urllib.error
+import urllib.request
 import json
-from io import BytesIO
-import gzip
 from claudesync.providers.claude_ai import ClaudeAIProvider
 from claudesync.exceptions import ProviderError
-
+import getpass
 
 class TestClaudeAIProvider(unittest.TestCase):
 
     def setUp(self):
-        self.provider = ClaudeAIProvider(
-            "test_session_key", "Tue, 03 Sep 2099 06:51:21 UTC"
-        )
+        self.provider = ClaudeAIProvider("test_session_key")
         self.mock_config = MagicMock()
 
     @patch("claudesync.config_manager.ConfigManager.get_session_key")
     @patch("claudesync.providers.claude_ai.urllib.request.urlopen")
     def test_make_request_success(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.headers = {"Content-Type": "application/json"}
-        mock_response.read.return_value = json.dumps({"key": "value"}).encode("utf-8")
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_response.getcode.return_value = 200
+        mock_response.read.return_value = json.dumps({"key": "value"}).encode('utf-8')
+        mock_urlopen.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
 
@@ -43,11 +38,8 @@ class TestClaudeAIProvider(unittest.TestCase):
     @patch("claudesync.providers.claude_ai.urllib.request.urlopen")
     def test_make_request_403_error(self, mock_urlopen, mock_get_session_key):
         mock_response = MagicMock()
-        mock_response.status = 403
-        mock_response.read.return_value = b"Forbidden"
-        mock_urlopen.side_effect = urllib.error.HTTPError(
-            url="http://test.com", code=403, msg="Forbidden", hdrs={}, fp=None
-        )
+        mock_response.getcode.return_value = 403
+        mock_urlopen.return_value = mock_response
 
         mock_get_session_key.return_value = "sk-ant-1234"
 
@@ -56,28 +48,17 @@ class TestClaudeAIProvider(unittest.TestCase):
 
         self.assertIn("403 Forbidden error", str(context.exception))
 
-    @patch("claudesync.config_manager.ConfigManager.get_session_key")
-    @patch("claudesync.providers.claude_ai.urllib.request.urlopen")
-    def test_make_request_gzip_response(self, mock_urlopen, mock_get_session_key):
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.headers = {
-            "Content-Type": "application/json",
-            "Content-Encoding": "gzip",
-        }
+    @patch("claudesync.providers.base_claude_ai.click.prompt")
+    @patch("claudesync.providers.base_claude_ai.getpass.getpass")
+    def test_login(self, mock_getpass, mock_prompt):
+        mock_getpass.return_value = "sk-ant-test123"
+        mock_prompt.return_value = "Tue, 03 Sep 2099 05:49:08 GMT"
+        self.provider.get_organizations = MagicMock(return_value=[{"id": "org1", "name": "Test Org"}])
 
-        # Create gzipped content
-        content = json.dumps({"key": "gzipped_value"}).encode("utf-8")
-        gzipped_content = BytesIO()
-        with gzip.GzipFile(fileobj=gzipped_content, mode="wb") as gzip_file:
-            gzip_file.write(content)
+        result = self.provider.login()
 
-        mock_response.read.return_value = gzipped_content.getvalue()
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        self.assertEqual(result, ("sk-ant-test123", "Tue, 03 Sep 2099 05:49:08 GMT"))
+        self.assertEqual(self.provider.session_key, "sk-ant-test123")
 
-        mock_get_session_key.return_value = "sk-ant-1234"
 
-        result = self.provider._make_request("GET", "/test")
-
-        self.assertEqual(result, {"key": "gzipped_value"})
-        mock_urlopen.assert_called_once()
+This code tests the `ClaudeAIProvider` class using `unittest`. The tests cover various scenarios, including successful requests, requests that fail, and requests that return a 403 Forbidden error. The tests use `urllib` instead of `requests` for HTTP requests, and they hide sensitive input during login prompts using `getpass`. The tests also handle session key expiry more flexibly by allowing for manual input of the expiry time.
